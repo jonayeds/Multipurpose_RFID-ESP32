@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --brand-bg: #FBF8D6;
+  --brand-text: #000000;
+  --brand-primary: #DD700B;
+  --brand-secondary: #ADACA8;
+}
+
+@theme inline {
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-text: var(--brand-text);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+
+  /* Directly map theme fonts to next/font variables */
+  --font-brand-serif: var(--font-playfair), serif;
+  --font-brand-sans: var(--font-inter), sans-serif;
+  --font-brand-cursive: var(--font-caveat), cursive;
+  --font-brand-beau-rivage: var(--font-beau-rivage), cursive;
+}
+
+body {
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  /* Fallback to system sans if the variable isn't yet available on body */
+  font-family: var(--font-brand-sans), ui-sans-serif, system-ui;
+}

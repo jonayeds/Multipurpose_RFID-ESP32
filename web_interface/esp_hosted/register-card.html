@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Card — UniCard RFID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Beau+Rivage&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .form-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 150px);
+      padding: 2rem var(--spacing);
+    }
+    .registration-card {
+      width: 100%;
+      max-width: 550px;
+    }
+    .form-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .form-header h1 {
+      font-size: 2rem;
+      color: var(--text-color);
+      margin-bottom: 0.5rem;
+    }
+    .form-header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Navigation ── -->
+  <nav class="navbar">
+    <span class="navbar-brand">UniCard RFID</span>
+    <button class="nav-menu-toggle" id="mobile-menu-btn" aria-label="Toggle navigation">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="register-card.html" class="active">Register Card</a></li>
+      <li><a href="register-reader.html">Register Reader</a></li>
+      <li><a href="login.html">Dashboard</a></li>
+    </ul>
+  </nav>
+
+  <div class="form-container">
+    <div class="card registration-card">
+      <div class="form-header">
+        <span class="highlight-text" style="font-size: 2em; display: block; margin-bottom: 0.5rem;">New Member</span>
+        <h1>Register RFID Card</h1>
+        <p>Enter the details below to issue a new multipurpose UniCard.</p>
+      </div>
+
+      <form id="card-registration-form">
+        <div class="form-group">
+          <label class="form-label" for="fullName">Full Name</label>
+          <input type="text" id="fullName" name="fullName" class="form-input" placeholder="e.g. John Doe" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone" class="form-input" placeholder="+1 234 567 890" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" name="email" class="form-input" placeholder="john@example.com" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="balance">Initial Balance ($)</label>
+          <input type="number" id="balance" name="balance" class="form-input" value="0" min="0" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="doorCode">Door Code (Optional)</label>
+          <input type="text" id="doorCode" name="doorCode" class="form-input" placeholder="Default is null" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Card Password (Used for Dashboard Login)</label>
+          <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register Card</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="scripts.js"></script>
+  <script>
+    document.getElementById('card-registration-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      // Ensure balance is a number
+      data.balance = parseFloat(data.balance) || 0;
+
+      // Handle optional door code (null if empty)
+      if (!data.doorCode || data.doorCode.trim() === '') {
+        data.doorCode = null;
+      }
+
+      console.log('Capturing card data:', data);
+
+      try {
+        const response = await fetch('http://writer.local/api/register-card', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (response.ok) {
+            console.log("Registration successful")
+        } else {
+          alert('Registration failed. Please check your connection or try again.');
+        }
+      } catch (error) {
+        console.error('Error saving card data:', error);
+        alert('Simulation Mode: Data captured. Redirecting to success page.');
+      }
+    });
+  </script>
+</body>
+</html>
