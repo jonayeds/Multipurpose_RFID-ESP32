@@ -50,6 +50,38 @@ api.post("/register-card", async (request, response) => {
       .json({ error: error.message || "Unable to register card" });
   }
 });
+api.post("/register-reader", async (request, response) => {
+  try {
+    const data = request.body;
+    const validModes = ["doorlock", "payment", "identification"];
+    const modeDataIsValid =
+      (data?.mode === "doorlock" && Boolean(data.doorcode)) ||
+      (data?.mode === "payment" &&
+        typeof data.deductionAmount === "number" &&
+        data.deductionAmount >= 0) ||
+      (data?.mode === "identification" && Array.isArray(data.cardIds));
+
+    if (
+      !data ||
+      !data.email ||
+      !data.readerPassword ||
+      !validModes.includes(data.mode) ||
+      !modeDataIsValid
+    ) {
+      throw new Error("Data not fulfilled to register reader");
+    }
+    const result = await Reader.insertOne(request.body);
+    response.status(201).json({
+      message: "Reader registered successfully",
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    console.error("Unable to register reader:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to register card" });
+  }
+});
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
