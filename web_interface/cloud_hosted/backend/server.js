@@ -41,24 +41,33 @@ app.use(async (req, res, next) => {
   }
 });
 
-function authenticateUser(request, response, next) {
-  const authorization = request.headers.authorization;
-  const token = authorization?.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : null;
+function authenticateUser(expectedType) {
+  return (request, response, next) => {
+    const authorization = request.headers.authorization;
+    const token = authorization?.startsWith("Bearer ")
+      ? authorization.slice(7)
+      : null;
 
-  if (!token) {
-    return response
-      .status(401)
-      .json({ error: "Authentication token required" });
-  }
+    if (!token) {
+      return response
+        .status(401)
+        .json({ error: "Authentication token required" });
+    }
 
-  try {
-    request.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch (error) {
-    return response.status(401).json({ error: "Invalid or expired token" });
-  }
+    try {
+      const decodedUser = jwt.verify(token, process.env.JWT_SECRET);
+      if (decodedUser.type !== expectedType) {
+        return response
+          .status(403)
+          .json({ error: `${expectedType} authentication required` });
+      }
+
+      request.user = decodedUser;
+      next();
+    } catch (error) {
+      return response.status(401).json({ error: "Invalid or expired token" });
+    }
+  };
 }
 
 app.get("/api/health", (_request, response) => {
@@ -217,14 +226,8 @@ api.get("/get-card/:cardId", async (request, response) => {
   }
 });
 
-api.get("/get-my-card", authenticateUser, async (request, response) => {
+api.get("/get-my-card", authenticateUser("card"), async (request, response) => {
   try {
-    if (request.user.type !== "card") {
-      return response
-        .status(403)
-        .json({ error: "Card authentication required" });
-    }
-
     const card = await Card.findOne({ _id: new ObjectId(request.user.id) });
     if (!card) {
       return response.status(404).json({ error: "Card not found" });
@@ -235,6 +238,22 @@ api.get("/get-my-card", authenticateUser, async (request, response) => {
     response.status(400).json({ error: "Invalid card identifier" });
   }
 });
+api.get(
+  "/get-my-reader",
+  authenticateUser("reader"),
+  async (request, response) => {
+  try {
+    const reader = await Reader.findOne({ _id: new ObjectId(request.user.id) });
+    if (!reader) {
+      return response.status(404).json({ error: "Reader not found" });
+    }
+    response.json(reader);
+  } catch (error) {
+    console.error("Unable to fetch authenticated reader:", error.message);
+    response.status(400).json({ error: "Invalid reader identifier" });
+  }
+  },
+);
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
