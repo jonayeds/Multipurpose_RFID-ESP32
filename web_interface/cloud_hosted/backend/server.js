@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors"); 
 const { MongoClient } = require("mongodb");
 
 const app = express();
@@ -15,7 +16,29 @@ const mongoClient = new MongoClient(databaseUrl);
 const Card = mongoClient.db().collection("cards");
 const Reader = mongoClient.db().collection("readers");
 
+// Enable CORS for all origins (allows Next.js & ESP32 local requests)
+app.use(cors());
 app.use(express.json());
+
+// Reusable Database Connection
+let isConnected = false;
+async function connectDB() {
+  if (!isConnected) {
+    await mongoClient.connect();
+    isConnected = true;
+    console.log("Connected to MongoDB");
+  }
+}
+
+// Connect before handling routes
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: "Database connection failed" });
+  }
+});
 
 app.get("/api/health", (_request, response) => {
   response.json({ status: "ok" });
@@ -33,9 +56,9 @@ api.post("/register-card", async (request, response) => {
       !data.email ||
       !data.phoneNumber ||
       !data.cardPassword ||
-      (data.balance!==0 && !data.balance)
+      (data.balance !== 0 && !data.balance)
     ) {
-      console.log(data)
+      console.log(data);
       throw new Error("Data not fulfilled to register card");
     }
     const result = await Card.insertOne(request.body);
@@ -50,6 +73,7 @@ api.post("/register-card", async (request, response) => {
       .json({ error: error.message || "Unable to register card" });
   }
 });
+
 api.post("/register-reader", async (request, response) => {
   try {
     const data = request.body;
@@ -79,7 +103,7 @@ api.post("/register-reader", async (request, response) => {
     console.error("Unable to register reader:", error.message);
     response
       .status(500)
-      .json({ error: error.message || "Unable to register card" });
+      .json({ error: error.message || "Unable to register reader" });
   }
 });
 
@@ -87,17 +111,11 @@ app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
 });
 
-async function startServer() {
-  await mongoClient.connect();
-  await mongoClient.db().command({ ping: 1 });
-  console.log("Connected to MongoDB");
-
+if (require.main === module) {
   app.listen(port, () => {
-    console.log(`API server listening on port ${port}`);
+    console.log(`Server running locally at http://localhost:${port}`);
   });
 }
 
-startServer().catch((error) => {
-  console.error("Unable to connect to MongoDB:", error.message);
-  process.exit(1);
-});
+// 3. Export for Vercel serverless functions
+module.exports = app;
