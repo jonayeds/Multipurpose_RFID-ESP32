@@ -5,6 +5,8 @@ import { motion, useInView } from 'framer-motion';
 import { Playfair_Display, Inter, Caveat, Beau_Rivage } from 'next/font/google';
 import Link from 'next/link';
 import AnimatedHighlight from '../components/AnimatedHighlight';
+import Image from 'next/image';
+import esp32Image from '../assets/images/esp32.png';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -236,7 +238,7 @@ export default function LandingPage() {
               transition={{ duration: 1 }}
               className="aspect-4/5 w-full max-w-md mx-auto border border-brand-secondary/20 bg-white shadow-sm flex items-center justify-center relative overflow-hidden rounded-3xl"
             >
-              <span className="text-black/20 font-light text-xl uppercase tracking-[0.2em] rotate-12">Hardware Architecture</span>
+              <Image src={esp32Image} width={400} height={400} alt="ESP32" draggable={false} />
             </motion.div>
             <motion.svg
               initial={{ opacity: 0, pathLength: 0 }}
