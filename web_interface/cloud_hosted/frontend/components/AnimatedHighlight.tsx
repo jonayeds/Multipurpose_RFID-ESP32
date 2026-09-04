@@ -19,7 +19,7 @@ export default function AnimatedHighlight({
 
   return (
     <span ref={ref} className={`relative inline-block text-brand-bg ${className}`}>
-      <motion.div
+      <motion.span
         className={`absolute rounded-md inset-y-0 left-0 z-0 ${highlightClassName}`}
         initial={{ width: 0 }}
         animate={isInView ? { width: '100%' } : { width: 0 }}
