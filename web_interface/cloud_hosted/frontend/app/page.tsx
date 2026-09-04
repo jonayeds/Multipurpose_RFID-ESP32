@@ -106,8 +106,8 @@ export default function LandingPage() {
             transition={{ duration: 1, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-6 justify-center items-center"
           >
-            <EditorialButton href="http://writer/register-card.html">Register Card</EditorialButton>
-            <EditorialButton href="http://reader/register-reader.html">Register Reader</EditorialButton>
+            <EditorialButton href="http://writer.local/register-card">Register Card</EditorialButton>
+            <EditorialButton href="http://reader.local/register-reader">Register Reader</EditorialButton>
             <EditorialButton href="/login" variant="secondary">Login to Dashboard</EditorialButton>
           </motion.div>
         </div>
