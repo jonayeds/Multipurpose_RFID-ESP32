@@ -224,11 +224,12 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, pathLength: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1.5, delay: 0.5 }}
-              className="absolute -left-10 md:-left-20 top-1/3 w-32 md:w-48 h-32 md:h-48 z-20 pointer-events-none"
+              className="absolute -left-10 md:-left-20 top-1/3 w-32 md:w-48 h-32 md:h-48 z-20 pointer-events-none -translate-y-24"
               viewBox="0 0 100 100"
             >
               <path
-                d="M 10,80 C 10,80 20,20 50,40 C 80,60 90,40 95,35 M 95,35 L 85,35 M 95,35 L 85,45"
+                d="M 10,80 C 10,80 20,20 50,40 C 80,60 90,40 95,35 M 95,35 L 85,39 M 95,35 L 91,46"
+                transform="translate(0 100) scale(1 -1)"
                 fill="none"
                 stroke="var(--brand-primary)"
                 strokeWidth="1.5"
