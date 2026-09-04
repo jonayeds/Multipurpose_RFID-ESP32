@@ -6,57 +6,152 @@
   <title>Register Card — UniCard RFID</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Beau+Rivage&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Beau+Rivage&family=Playfair+Display:wght@700;800&family=Caveat:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <style>
+    :root {
+      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      /* Subtle dot pattern background */
+      background-image: radial-gradient(rgba(173, 172, 168, 0.3) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-attachment: fixed;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     .form-container {
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: calc(100vh - 150px);
       padding: 2rem var(--spacing);
+      animation: fadeInUp 0.6s ease-out;
     }
+
     .registration-card {
       width: 100%;
       max-width: 550px;
+      border: 1px solid rgba(173, 172, 168, 0.5);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      transition: var(--transition-smooth);
     }
+
+    .registration-card:hover {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
     .form-header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
     }
+
     .form-header h1 {
-      font-size: 2rem;
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
       color: var(--text-color);
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
     }
+
     .form-header p {
+      font-family: 'Inter', sans-serif;
       color: var(--text-muted);
-      font-size: 1rem;
+      font-size: 1.05rem;
+    }
+
+    .form-group {
+      transition: var(--transition-smooth);
+    }
+
+    .form-input {
+      transition: var(--transition-smooth) !important;
+    }
+
+    .form-input:focus {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      transition: var(--transition-smooth) !important;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+
+    .back-link {
+      color: var(--primary-color);
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: var(--transition-smooth);
+    }
+
+    .back-link:hover {
+      opacity: 0.8;
+      transform: translateX(-4px);
+    }
+
+    /* Loading State Styles */
+    .btn-loading {
+      position: relative;
+      color: transparent !important;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-loading::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: calc(50% - 10px);
+      left: calc(50% - 10px);
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
 
-  <!-- ── Navigation ── -->
-  <nav class="navbar">
-    <span class="navbar-brand">UniCard RFID</span>
-    <button class="nav-menu-toggle" id="mobile-menu-btn" aria-label="Toggle navigation">
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
-    <ul class="nav-links" id="nav-links">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="register-card.html" class="active">Register Card</a></li>
-      <li><a href="register-reader.html">Register Reader</a></li>
-      <li><a href="login.html">Dashboard</a></li>
-    </ul>
-  </nav>
+  <!-- ── Back to Home ── -->
+  <div class="container" style="max-width: 550px; margin: 0 auto; padding: 2rem var(--spacing) 0;">
+    <a href="https://multipurposerfidclient.vercel.app" class="back-link">
+      <span style="font-size: 1.2rem;">←</span> Go back to Homepage
+    </a>
+  </div>
 
   <div class="form-container">
     <div class="card registration-card">
       <div class="form-header">
-        <span class="highlight-text" style="font-size: 2em; display: block; margin-bottom: 0.5rem;">New Member</span>
+        <span class="highlight-text" style="font-family: 'Caveat', cursive; font-size: 2.5em; display: block; margin-bottom: 0.5rem;">New Member</span>
         <h1>Register RFID Card</h1>
         <p>Enter the details below to issue a new multipurpose UniCard.</p>
       </div>
@@ -102,7 +197,11 @@
     document.getElementById('card-registration-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const formData = new FormData(e.target);
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
+
+      const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
 
       // Ensure balance is a number
@@ -112,6 +211,10 @@
       if (!data.doorcode || data.doorcode.trim() === '') {
         data.doorcode = null;
       }
+
+      // Set loading state
+      submitBtn.disabled = true;
+      submitBtn.classList.add('btn-loading');
 
       console.log('Capturing card data:', data);
 
@@ -127,10 +230,16 @@
             window.location.href = 'https://multipurposerfidclient.vercel.app/login';
         } else {
           const errorData = await response.json();
-          console.error('Registration failed:', errorData);     
+          console.error('Registration failed:', errorData);
+          // Reset button state on failure
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('btn-loading');
         }
       } catch (error) {
         console.error('Error saving card data:', error);
+        // Reset button state on error
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-loading');
       }
     });
   </script>
