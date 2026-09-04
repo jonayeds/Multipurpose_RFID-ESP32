@@ -1,8 +1,9 @@
 require("dotenv").config();
 
 const express = require("express");
-const cors = require("cors"); 
-const { MongoClient } = require("mongodb");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const { MongoClient, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -39,6 +40,26 @@ app.use(async (req, res, next) => {
     res.status(500).json({ error: "Database connection failed" });
   }
 });
+
+function authenticateUser(request, response, next) {
+  const authorization = request.headers.authorization;
+  const token = authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : null;
+
+  if (!token) {
+    return response
+      .status(401)
+      .json({ error: "Authentication token required" });
+  }
+
+  try {
+    request.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch (error) {
+    return response.status(401).json({ error: "Invalid or expired token" });
+  }
+}
 
 app.get("/api/health", (_request, response) => {
   response.json({ status: "ok" });
@@ -104,6 +125,114 @@ api.post("/register-reader", async (request, response) => {
     response
       .status(500)
       .json({ error: error.message || "Unable to register reader" });
+  }
+});
+
+api.post("/login-card", async (request, response) => {
+  try {
+    const { email, cardPassword } = request.body;
+    if (!email || !cardPassword) {
+      throw new Error("Email and card password are required");
+    }
+    const card = await Card.findOne({ email });
+    if (!card) {
+      throw new Error("Card not found");
+    }
+    if (card.cardPassword !== cardPassword) {
+      throw new Error("Invalid card password");
+    }
+    const token = jwt.sign(
+      { id: card._id.toString(), email: card.email, type: "card" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "10d",
+      },
+    );
+    response
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      })
+      .json({ token });
+  } catch (error) {
+    console.error("Unable to login card:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to login card" });
+  }
+});
+
+api.post("/login-reader", async (request, response) => {
+  try {
+    const { email, readerPassword } = request.body;
+    if (!email || !readerPassword) {
+      throw new Error("Email and reader password are required");
+    }
+
+    const reader = await Reader.findOne({ email });
+    if (!reader) {
+      throw new Error("Reader not found");
+    }
+    if (reader.readerPassword !== readerPassword) {
+      throw new Error("Invalid reader password");
+    }
+
+    const token = jwt.sign(
+      { id: reader._id.toString(), email: reader.email, type: "reader" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "10d",
+      },
+    );
+    response
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      })
+      .json({ token });
+  } catch (error) {
+    console.error("Unable to login reader:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to login reader" });
+  }
+});
+
+api.get("/get-card/:cardId", async (request, response) => {
+  try {
+    const cardId = new ObjectId(request.params.cardId);
+    const card = await Card.findOne({ _id: cardId });
+    if (!card) {
+      console.log(cardId);
+      return response.status(404).json({ error: "Card not found" });
+    }
+    response.json(card);
+  } catch (error) {
+    console.error("Unable to fetch card:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to fetch card" });
+  }
+});
+
+api.get("/get-my-card", authenticateUser, async (request, response) => {
+  try {
+    if (request.user.type !== "card") {
+      return response
+        .status(403)
+        .json({ error: "Card authentication required" });
+    }
+
+    const card = await Card.findOne({ _id: new ObjectId(request.user.id) });
+    if (!card) {
+      return response.status(404).json({ error: "Card not found" });
+    }
+    response.json(card);
+  } catch (error) {
+    console.error("Unable to fetch authenticated card:", error.message);
+    response.status(400).json({ error: "Invalid card identifier" });
   }
 });
 
