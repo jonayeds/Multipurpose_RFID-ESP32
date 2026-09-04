@@ -4,18 +4,19 @@
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <WiFiManager.h> // 1. Included the new library
 
-const char* ssid = "Mahi";
-const char* pass = "1357mahi";
+
+// const char* ssid = "Sajjad";
+// const char* pass = "12345678";
 
 WebServer server(80);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(1000); 
   Serial.println("\n--- Initializing LittleFS ---");
   
-
   if (!LittleFS.begin(true)) {
     Serial.println("Error mounting LittleFS!");
     return;
@@ -35,16 +36,31 @@ void setup() {
     }
   }
 
-  Serial.println("\n--- Starting Wi-Fi ---");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, pass);
+  Serial.println("\n--- Starting Wi-FiManager ---");
+  
+  WiFiManager wifiManager;
 
-  while(WiFi.status() != WL_CONNECTED){
-    delay(500);
-    Serial.print(".");
+    if (!wifiManager.autoConnect("RFID-Writer-Setup")) {
+    Serial.println("Failed to connect to Wi-Fi. Restarting...");
+    delay(3000);
+    ESP.restart();
   }
 
-  Serial.println("\nConnected!");
+
+  // wifiManager.resetSettings(); 
+  // wifiManager.setConfigPortalTimeout(180);
+
+  // WiFi.mode(WIFI_STA);
+  // WiFi.begin(ssid, pass);
+
+  // while(WiFi.status() != WL_CONNECTED){
+  //   delay(500);
+  //   Serial.print(".");
+  // }
+
+
+  // If the code reaches here, you are successfully connected!
+  Serial.println("\nConnected to Wi-Fi!");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
@@ -52,13 +68,13 @@ void setup() {
     Serial.println("MDNS initialized");
   }
 
-  // register card html
   server.serveStatic("/register-card", LittleFS, "/register-card.html");
-  // register card api
-  server.on("/api/register-card", HTTP_POST, handleCardRegistration );
-
+  server.on("/", []() {
+    server.sendHeader("Location", "/register-card", true);
+    server.send(302, "text/plain", "");
+  });
   server.serveStatic("/", LittleFS, "/");
-
+  server.on("/api/register-card", HTTP_POST, handleCardRegistration );
 
   server.begin();
   Serial.println("HTTP server started! Type the IP address into your browser.");
@@ -66,11 +82,11 @@ void setup() {
 
 void loop() {
   server.handleClient();
-  if(WiFi.status() == WL_CONNECTED){
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-  }
-
+  // if(WiFi.status() == WL_CONNECTED){
+  // Serial.print("IP Address: ");
+  // Serial.println(WiFi.localIP());
+  // }
+  delay(100);
   if (!LittleFS.begin(true)) {
     Serial.println("Error mounting LittleFS! Did you upload the data folder?");
   }
@@ -98,14 +114,11 @@ void handleCardRegistration() {
     http.begin("https://multipurposerfidserver.vercel.app/api/v1/register-card"); 
     http.addHeader("Content-Type", "application/json");
 
-    // Send the exact JSON string we got from the browser to the cloud
     int httpResponseCode = http.POST(jsonString);
 
     if (httpResponseCode == 201) {
-      // Success! Tell the browser to redirect.
       server.send(200, "application/json", "{\"status\":\"success\"}");
     } else {
-      // Capture the error from Express and pass it to the browser
       String responseStr = http.getString();
       server.send(httpResponseCode, "application/json", responseStr);
     }
