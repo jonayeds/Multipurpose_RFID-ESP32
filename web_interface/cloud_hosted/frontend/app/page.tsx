@@ -2,33 +2,12 @@
 
 import React, { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { Playfair_Display, Inter, Caveat, Beau_Rivage } from 'next/font/google';
+
 import Link from 'next/link';
 import AnimatedHighlight from '../components/AnimatedHighlight';
 import Image from 'next/image';
 import esp32Image from '../assets/images/esp32.png';
 
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  style: ['normal', 'italic'],
-  variable: '--font-playfair',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
-
-const caveat = Caveat({
-  subsets: ['latin'],
-  variable: '--font-caveat',
-});
-
-const beauRivage = Beau_Rivage({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-beau-rivage',
-});
 
 /**
  * DelicateHighlight Component
@@ -93,7 +72,7 @@ const EditorialButton = ({ href, children, variant = 'primary' }: { href: string
 
 export default function LandingPage() {
   return (
-    <main className={`${inter.variable} ${playfair.variable} ${caveat.variable} ${beauRivage.variable} font-brand-sans bg-brand-bg text-brand-text min-h-screen selection:bg-brand-primary/20 selection:text-brand-primary overflow-x-hidden`}>
+    <main className={`font-brand-sans bg-brand-bg text-brand-text min-h-screen selection:bg-brand-primary/20 selection:text-brand-primary overflow-x-hidden`}>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-48 px-6">
