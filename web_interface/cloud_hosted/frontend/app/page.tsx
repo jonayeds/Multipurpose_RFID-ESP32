@@ -1,13 +1,42 @@
 "use client";
 
-import React, { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import React, { useRef, useState } from 'react';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 
 import Link from 'next/link';
 import AnimatedHighlight from '../components/AnimatedHighlight';
 import Image from 'next/image';
 import esp32Image from '../assets/images/esp32.png';
 
+
+/**
+ * LoadingOverlay Component
+ */
+const LoadingOverlay = ({ onCancel }: { onCancel: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    onClick={onCancel}
+    className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-brand-bg/90 backdrop-blur-md cursor-pointer"
+  >
+    <div className="relative w-16 h-16">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-full h-full border-4 border-brand-secondary/30 border-t-brand-primary rounded-full"
+      />
+    </div>
+    <motion.p
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="mt-4 font-brand-serif text-xl text-brand-text opacity-70 tracking-tight"
+    >
+      Connecting to local device...
+    </motion.p>
+  </motion.div>
+);
 
 /**
  * DelicateHighlight Component
@@ -42,13 +71,21 @@ const DelicateHighlight = ({ children }: { children: React.ReactNode }) => {
 /**
  * EditorialButton Component
  */
-const EditorialButton = ({ href, children, variant = 'primary' }: { href: string, children: React.ReactNode, variant?: 'primary' | 'secondary' }) => {
+const EditorialButton = ({ href, children, variant = 'primary', onClick }: { href: string, children: React.ReactNode, variant?: 'primary' | 'secondary', onClick?: () => void }) => {
   const styles = variant === 'primary'
     ? "bg-brand-primary text-white hover:bg-opacity-90"
     : "bg-transparent text-brand-text border border-brand-secondary hover:bg-brand-secondary/10";
 
   return (
-    <Link href={href}>
+    <Link
+      href={href}
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <motion.div
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
@@ -71,8 +108,34 @@ const EditorialButton = ({ href, children, variant = 'primary' }: { href: string
 };
 
 export default function LandingPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleExternalRedirect = (url: string) => {
+    setIsLoading(true);
+
+    // Clear any existing timeout just in case
+    if (redirectTimeoutRef.current) clearTimeout(redirectTimeoutRef.current);
+
+    // Store the timeout ID so it can be cancelled
+    redirectTimeoutRef.current = setTimeout(() => {
+      window.location.href = url;
+    }, 600);
+  };
+
+  const cancelLoading = () => {
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
+      redirectTimeoutRef.current = null;
+    }
+    setIsLoading(false);
+  };
+
   return (
-    <main className={`font-brand-sans bg-brand-bg text-brand-text min-h-screen selection:bg-brand-primary/20 selection:text-brand-primary overflow-x-hidden`}>
+    <main className={`font-brand-sans bg-brand-bg text-brand-text min-h-screen selection:bg-brand-primary/20 selection:text-brand-primary overflow-x-hidden relative`}>
+      <AnimatePresence>
+        {isLoading && <LoadingOverlay onCancel={cancelLoading} />}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-48 px-6">
@@ -106,8 +169,18 @@ export default function LandingPage() {
             transition={{ duration: 1, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-6 justify-center items-center"
           >
-            <EditorialButton href="http://writer.local/register-card">Register Card</EditorialButton>
-            <EditorialButton href="http://reader.local/register-reader">Register Reader</EditorialButton>
+            <EditorialButton
+              href="http://writer.local/register-card"
+              onClick={() => handleExternalRedirect("http://writer.local/register-card")}
+            >
+              Register Card
+            </EditorialButton>
+            <EditorialButton
+              href="http://reader.local/register-reader"
+              onClick={() => handleExternalRedirect("http://reader.local/register-reader")}
+            >
+              Register Reader
+            </EditorialButton>
             <EditorialButton href="/login" variant="secondary">Login to Dashboard</EditorialButton>
           </motion.div>
         </div>
