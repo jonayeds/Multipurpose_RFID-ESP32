@@ -1,6 +1,9 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <LittleFS.h> 
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 const char* ssid = "Mahi";
 const char* pass = "1357mahi";
@@ -14,15 +17,13 @@ void setup() {
   
 
   if (!LittleFS.begin(true)) {
-    Serial.println("Error mounting LittleFS! Did you upload the data folder?");
+    Serial.println("Error mounting LittleFS!");
     return;
   }
-  
 
   File root = LittleFS.open("/");
   File file = root.openNextFile();
   
-
   if (!file) {
     Serial.println("No files found in LittleFS!");
   } else {
@@ -47,17 +48,21 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
+  if(MDNS.begin("writer")){ // http://writer.local
+    Serial.println("MDNS initialized");
+  }
+
+  // register card html
+  server.serveStatic("/register-card", LittleFS, "/register-card.html");
+  // register card api
+  server.on("/api/register-card", HTTP_POST, handleCardRegistration );
 
   server.serveStatic("/", LittleFS, "/");
-  
-  // Default fallback to index.html if they visit the root IP address
-  server.serveStatic("/", LittleFS, "/index.html");
+
 
   server.begin();
   Serial.println("HTTP server started! Type the IP address into your browser.");
 }
-// 
-// IP Address: 192.168.0.105
 
 void loop() {
   server.handleClient();
@@ -71,4 +76,42 @@ void loop() {
   }
 
   delay(100);
+}
+
+
+
+
+void handleCardRegistration() {
+  if (server.hasArg("plain") == false) {
+    server.send(400, "application/json", "{\"error\":\"No body received\"}");
+    return;
+  }
+  
+  String jsonString = server.arg("plain");
+  
+  // check and write on the card
+  // -------------------------------
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    
+    http.begin("https://multipurposerfidserver.vercel.app/api/v1/register-card"); 
+    http.addHeader("Content-Type", "application/json");
+
+    // Send the exact JSON string we got from the browser to the cloud
+    int httpResponseCode = http.POST(jsonString);
+
+    if (httpResponseCode == 201) {
+      // Success! Tell the browser to redirect.
+      server.send(200, "application/json", "{\"status\":\"success\"}");
+    } else {
+      // Capture the error from Express and pass it to the browser
+      String responseStr = http.getString();
+      server.send(httpResponseCode, "application/json", responseStr);
+    }
+    
+    http.end();
+  } else {
+    server.send(503, "application/json", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
+  }
 }
