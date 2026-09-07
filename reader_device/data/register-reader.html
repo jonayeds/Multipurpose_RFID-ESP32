@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Reader — UniCard RFID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Beau+Rivage&family=Playfair+Display:wght@700;800&family=Caveat:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      /* Subtle dot pattern background */
+      background-image: radial-gradient(rgba(173, 172, 168, 0.3) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-attachment: fixed;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 150px);
+      padding: 2rem var(--spacing);
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .registration-card {
+      width: 100%;
+      max-width: 550px;
+      border: 1px solid rgba(173, 172, 168, 0.5);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      transition: var(--transition-smooth);
+    }
+
+    .registration-card:hover {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .form-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .form-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
+      color: var(--text-color);
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+
+    .form-header p {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    .form-group {
+      transition: var(--transition-smooth);
+    }
+
+    .form-input {
+      transition: var(--transition-smooth) !important;
+    }
+
+    .form-input:focus {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      transition: var(--transition-smooth) !important;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+
+    .back-link {
+      color: var(--primary-color);
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: var(--transition-smooth);
+    }
+
+    .back-link:hover {
+      opacity: 0.8;
+      transform: translateX(-4px);
+    }
+
+    /* Loading State Styles */
+    .btn-loading {
+      position: relative;
+      color: transparent !important;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-loading::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: calc(50% - 10px);
+      left: calc(50% - 10px);
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Form Message Styling */
+    .form-message {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+      text-align: center;
+      transition: var(--transition-smooth);
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .form-message.error {
+      display: block;
+      background-color: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    .form-message.success {
+      display: block;
+      background-color: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    /* Dynamic Section Styling */
+    .dynamic-section-wrapper {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  margin 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+
+    .dynamic-section-wrapper.visible {
+      grid-template-rows: 1fr;
+      margin-bottom: 1.25rem;
+    }
+
+    .dynamic-section-content {
+      min-height: 0;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      padding: 0 1.25rem; /* Horizontal padding only here */
+    }
+
+    .dynamic-section-wrapper.visible .dynamic-section-content {
+      opacity: 1;
+      transform: translateY(0);
+      padding: 1.25rem;
+      background-color: rgba(250, 250, 250, 0.5);
+      border: 1px dashed var(--secondary-color);
+      border-radius: var(--radius-md);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Back to Home ── -->
+  <div class="container" style="max-width: 550px; margin: 0 auto; padding: 2rem var(--spacing) 0;">
+    <a href="https://unicard.sajjadjonayed.com" class="back-link">
+      <span style="font-size: 1.2rem;">←</span> Go back to Homepage
+    </a>
+  </div>
+
+  <div class="form-container">
+    <div class="card registration-card">
+      <div class="form-header">
+        <span class="highlight-text" style="font-family: 'Caveat', cursive; font-size: 2.5em; display: block; margin-bottom: 0.5rem;">Hardware Setup</span>
+        <h1>Register RFID Reader</h1>
+        <p>Configure your reader device and set its operational mode.</p>
+      </div>
+
+      <div id="form-message" class="form-message"></div>
+
+      <form id="reader-registration-form">
+        <!-- Static Field: Reader Password -->
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address (Used for Dashboard Login)</label>
+          <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="readerPassword">Reader Password (Used for Dashboard Login)</label>
+          <input type="password" id="readerPassword" name="readerPassword" class="form-input" placeholder="••••••••" required />
+        </div>
+
+        <!-- Static Field: Reader Mode -->
+        <div class="form-group">
+          <label class="form-label" for="mode">Reader Mode</label>
+          <select id="mode" name="mode" class="form-input" required>
+            <option value="" disabled selected>Select operational mode...</option>
+            <option value="identification">Identity Verification</option>
+            <option value="payment">Payment System</option>
+            <option value="doorlock">Door Lock</option>
+          </select>
+        </div>
+
+        <!-- Dynamic Section: Identity Verification -->
+        <div id="section-identity" class="dynamic-section-wrapper">
+          <div class="dynamic-section-content">
+            <div class="form-group">
+              <label class="form-label" for="allowedIds">Allowed User IDs (comma separated)</label>
+              <input type="text" id="allowedIds" name="allowedIds" class="form-input" placeholder="ID1, ID2, ID3..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Section: Payment -->
+        <div id="section-payment" class="dynamic-section-wrapper">
+          <div class="dynamic-section-content">
+            <div class="form-group">
+              <label class="form-label" for="deductionAmount">Deduction Amount / Price ($)</label>
+              <input type="number" id="deductionAmount" name="deductionAmount" class="form-input" placeholder="0.00" step="0.01" min="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Section: Door Lock -->
+        <div id="section-door" class="dynamic-section-wrapper">
+          <div class="dynamic-section-content">
+            <div class="form-group">
+              <label class="form-label" for="doorPassword">Door Password (Fixed 4 characters)</label>
+              <input type="password" id="doorPassword" name="doorPassword" class="form-input" maxlength="4" minlength="4" placeholder="1234" />
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register Reader</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    const modeSelect = document.getElementById("mode");
+    const sections = {
+      identification: document.getElementById("section-identity"),
+      payment: document.getElementById("section-payment"),
+      doorlock: document.getElementById("section-door"),
+    };
+
+    // ── Handle Mode Change ──
+    modeSelect.addEventListener("change", () => {
+      const selectedMode = modeSelect.value;
+
+      // Hide all dynamic sections first
+      Object.values(sections).forEach(
+        (section) => section.classList.remove("visible"),
+      );
+
+      // Show the selected one
+      if (sections[selectedMode]) {
+        sections[selectedMode].classList.add("visible");
+      }
+    });
+
+    // ── Handle Form Submit ──
+    document.getElementById("reader-registration-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const msgElement = document.getElementById("form-message");
+
+      const showMessage = (text, type) => {
+        msgElement.textContent = text;
+        msgElement.className = `form-message ${type}`;
+        if (type === 'error') {
+          setTimeout(() => {
+            msgElement.className = 'form-message';
+          }, 5000);
+        }
+      };
+
+      const formData = new FormData(form);
+      const rawData = Object.fromEntries(formData.entries());
+      const mode = rawData.mode;
+
+      // Prepare the final object
+      const payload = {
+        email: rawData.email,
+        readerPassword: rawData.readerPassword,
+        mode: mode,
+        cardIds: null,
+        deductionAmount: null,
+        doorcode: null,
+      };
+
+      console.log(payload)
+
+      // ── Validation and Mapping ──
+      if (mode === "identification") {
+        if (!rawData.allowedIds || rawData.allowedIds.trim() === "") {
+          showMessage("Please provide at least one allowed User ID.", "error");
+          return;
+        }
+        payload.cardIds = rawData.allowedIds
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id !== "");
+      } else if (mode === "payment") {
+        const amount = parseFloat(rawData.deductionAmount);
+        if (isNaN(amount)) {
+          showMessage("The Deduction Amount is not a valid number.", "error");
+          return;
+        }
+        payload.deductionAmount = amount;
+      } else if (mode === "doorlock") {
+        const doorPass = rawData.doorPassword;
+        if (!doorPass || doorPass.length !== 4) {
+          showMessage("The Door Password must be exactly 4 characters long.", "error");
+          return;
+        }
+        payload.doorcode = doorPass;
+      }
+
+      // Set loading state
+      submitBtn.disabled = true;
+      submitBtn.classList.add('btn-loading');
+      msgElement.className = 'form-message'; // Clear previous messages
+
+      console.log("Capturing reader data:", payload);
+
+      try {
+        console.log("Sending api request to register reader on: http://reader.local/api/register-reader")
+        const response = await fetch(
+          "http://reader.local/api/register-reader",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        if (response.ok) {
+          console.log("Registration successful");
+          showMessage("Registration successful! Redirecting...", "success");
+          setTimeout(() => {
+            window.location.href = 'https://unicard.sajjadjonayed.com/login';
+          }, 1500);
+        } else {
+          const errorData = await response.json();
+          console.error('Registration failed:', errorData);
+          showMessage("Registration failed. Please check your input.", "error");
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('btn-loading');
+        }
+      } catch (error) {
+        console.error("Error saving reader data:", error);
+        showMessage("Network error. Please try again later.", "error");
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-loading');
+      }
+    });
+  </script>
+</body>
+</html>
