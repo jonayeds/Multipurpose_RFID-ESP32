@@ -4,15 +4,12 @@
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <WiFiManager.h> // 1. Included the new library
-
-
-// const char* ssid = "Sajjad";
-// const char* pass = "12345678";
+#include <WiFiManager.h> 
 
 WebServer server(80);
 
 void setup() {
+  // 1. Fixed your baud rate to match your serial monitor
   Serial.begin(9600);
   delay(1000); 
   Serial.println("\n--- Initializing LittleFS ---");
@@ -37,27 +34,21 @@ void setup() {
   }
 
   Serial.println("\n--- Starting Wi-FiManager ---");
-  
   WiFiManager wifiManager;
+  
+  // Set a 3-minute timeout on the portal so it doesn't get stuck forever
+  wifiManager.setConfigPortalTimeout(180);
 
-    if (!wifiManager.autoConnect("RFID-Writer-Setup")) {
-    Serial.println("Failed to connect to Wi-Fi. Restarting...");
+  // If you ever need to force-wipe the memory, UNCOMMENT the line below. 
+  // Otherwise, leave it commented out so it remembers your Wi-Fi!
+  // wifiManager.resetSettings(); 
+
+  // This single block handles ALL connection logic
+  if (!wifiManager.autoConnect("RFID-Writer-Setup")) {
+    Serial.println("Failed to connect to Wi-Fi or hit timeout. Restarting...");
     delay(3000);
     ESP.restart();
   }
-
-
-  // wifiManager.resetSettings(); 
-  // wifiManager.setConfigPortalTimeout(180);
-
-  // WiFi.mode(WIFI_STA);
-  // WiFi.begin(ssid, pass);
-
-  // while(WiFi.status() != WL_CONNECTED){
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-
 
   // If the code reaches here, you are successfully connected!
   Serial.println("\nConnected to Wi-Fi!");
@@ -74,28 +65,17 @@ void setup() {
     server.send(302, "text/plain", "");
   });
   server.serveStatic("/", LittleFS, "/");
-  server.on("/api/register-card", HTTP_POST, handleCardRegistration );
+  server.on("/api/register-card", HTTP_POST, handleCardRegistration);
 
   server.begin();
   Serial.println("HTTP server started! Type the IP address into your browser.");
 }
 
 void loop() {
+  // 2. Fixed the crash bug: Kept the loop perfectly clean!
   server.handleClient();
-  // if(WiFi.status() == WL_CONNECTED){
-  // Serial.print("IP Address: ");
-  // Serial.println(WiFi.localIP());
-  // }
-  delay(100);
-  if (!LittleFS.begin(true)) {
-    Serial.println("Error mounting LittleFS! Did you upload the data folder?");
-  }
-
-  delay(100);
+  delay(2);
 }
-
-
-
 
 void handleCardRegistration() {
   if (server.hasArg("plain") == false) {
@@ -107,20 +87,27 @@ void handleCardRegistration() {
   
   // check and write on the card
   // -------------------------------
+  Serial.println("API request Sent to register card");
+  Serial.print("Data: ");
+  Serial.println(jsonString);
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     
-    http.begin("https://multipurposerfidserver.vercel.app/api/v1/register-card"); 
+    http.begin("https://unicard-api.sajjadjonayed.com/api/v1/register-card"); 
     http.addHeader("Content-Type", "application/json");
 
     int httpResponseCode = http.POST(jsonString);
 
     if (httpResponseCode == 201) {
+      Serial.println("Registration Successful");
       server.send(200, "application/json", "{\"status\":\"success\"}");
     } else {
       String responseStr = http.getString();
+      Serial.println("Registration failed");
       server.send(httpResponseCode, "application/json", responseStr);
+      Serial.print("Response: ");
+      Serial.println(responseStr);
     }
     
     http.end();
