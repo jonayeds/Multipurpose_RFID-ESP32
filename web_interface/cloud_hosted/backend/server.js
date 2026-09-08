@@ -82,6 +82,7 @@ api.post("/register-card", async (request, response) => {
     const data = request.body;
     if (
       !data ||
+      !data.cardUID ||
       !data.fullname ||
       !data.email ||
       !data.phoneNumber ||
@@ -209,12 +210,12 @@ api.post("/login-reader", async (request, response) => {
   }
 });
 
-api.get("/get-card/:cardId", async (request, response) => {
+api.get("/get-card/:cardUID", async (request, response) => {
   try {
-    const cardId = new ObjectId(request.params.cardId);
-    const card = await Card.findOne({ _id: cardId });
+    const cardUID = request.params.cardUID;
+    const card = await Card.findOne({ cardUID });
     if (!card) {
-      console.log(cardId);
+      console.log(cardUID);
       return response.status(404).json({ error: "Card not found" });
     }
     response.json(card);
