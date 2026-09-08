@@ -16,18 +16,18 @@
 // rfid
 #include <SPI.h>
 #include <MFRC522.h>
-
+// a1fb3065
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 
 // rfid Pins
-#define SS_PIN 5
+#define SDA_PIN 5
 #define RST_PIN 4
 
 
-MFRC522 rfid(SS_PIN, RST_PIN);
+MFRC522 rfid(SDA_PIN, RST_PIN);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 WebServer server(80);
 
@@ -131,12 +131,58 @@ void loop() {
         cardUID += String(rfid.uid.uidByte[i], HEX);
       }
       
-      cardUID.toUpperCase();
+      // cardUID.toUpperCase();
       Serial.println(cardUID);
+
+
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setCursor(0, 20);
+      display.setTextColor(SSD1306_WHITE);
+      display.println("Varifying...");
+      display.display();
+
+      cardUID.toLowerCase();
+      String userName = fetchCardData(cardUID);
+      Serial.println(userName);
+      String firstName = userName;
+      int spaceIndex = userName.indexOf(' ');
+      if (spaceIndex != -1) { 
+          firstName = userName.substring(0, spaceIndex);
+      }
+      
+      if(userName == ""){
+        // Failed to fetch or parse the name
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setCursor(0, 20);
+        display.setTextColor(SSD1306_WHITE);
+        display.println("Card is not verified");
+        display.display();
+      } else {
+        // Successfully got the user name
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setCursor(0, 20);
+        display.setTextColor(SSD1306_WHITE);
+        display.println("---Welcome---");
+
+        display.setTextSize(2);
+        display.setCursor(0, 30);
+        display.setTextColor(SSD1306_WHITE);
+        display.println(firstName);
+        display.display();
+      }
+
+      
 
       // Halt the card so it doesn't read the same tap 100 times a second
       rfid.PICC_HaltA();
       rfid.PCD_StopCrypto1();
+
+      delay(5000);
+      display.clearDisplay();
+      display.display();
     }
   }
 }
@@ -234,4 +280,52 @@ void showSuccessAnimation() {
   delay(2500); 
   display.clearDisplay();
   display.display();
+}
+
+
+String fetchCardData(String uid) {
+  String fetchedName = "";
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String serverPath = "https://unicard-api.sajjadjonayed.com/api/v1/get-card/" + uid;
+    
+    Serial.print("Fetching data from: ");
+    Serial.println(serverPath);
+
+    http.begin(serverPath);
+    int httpResponseCode = http.GET();
+    
+    if (httpResponseCode > 0) {
+      Serial.print("HTTP Response Code: ");
+      Serial.println(httpResponseCode);
+      
+      if (httpResponseCode == 200) {
+        String payload = http.getString();
+        Serial.println("Response Payload: " + payload);
+        
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, payload);
+        
+        if (!error) {
+          fetchedName = doc["fullname"].as<String>(); 
+        } else {
+          Serial.print("JSON Parsing failed: ");
+          Serial.println(error.c_str());
+        }
+      } else {
+        Serial.print("Error fetching the card data: ");
+        Serial.println(httpResponseCode);
+      }
+    } else {
+      Serial.print("Error on HTTP request: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end();
+  } else {
+    Serial.println("Wi-Fi Disconnected. Cannot verify card.");
+  }
+  
+  return fetchedName; 
 }
