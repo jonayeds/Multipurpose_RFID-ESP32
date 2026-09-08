@@ -5,11 +5,24 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h> 
+#include <SPI.h>
+#include <MFRC522.h>
+
+
+// rfid pins
+#define RST_PIN      32
+#define SDA_PIN      33
+#define CUSTOM_MOSI  25
+#define CUSTOM_MISO  26
+#define CUSTOM_SCK   27
 
 WebServer server(80);
+MFRC522 rfid(SDA_PIN, RST_PIN);
+
+String cardUID="";
+long cardUID_hold_time=10000;
 
 void setup() {
-  // 1. Fixed your baud rate to match your serial monitor
   Serial.begin(9600);
   delay(1000); 
   Serial.println("\n--- Initializing LittleFS ---");
@@ -69,12 +82,42 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started! Type the IP address into your browser.");
+
+
+  // RFID
+  SPI.begin(CUSTOM_SCK, CUSTOM_MISO, CUSTOM_MOSI, SDA_PIN);
+  rfid.PCD_Init();
+  Serial.println("Writer Device RC522 initialized on custom 3.3V-side pins.");
+  rfid.PCD_DumpVersionToSerial();
 }
 
 void loop() {
-  // 2. Fixed the crash bug: Kept the loop perfectly clean!
   server.handleClient();
-  delay(2);
+  delay(100);
+  if(rfid.PICC_IsNewCardPresent() && (cardUID == "")) {
+    if (rfid.PICC_ReadCardSerial()) {
+      Serial.print("Card UID Detected: ");
+      
+      for (byte i = 0; i < rfid.uid.size; i++) {
+        cardUID += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+        cardUID += String(rfid.uid.uidByte[i], HEX);
+      }
+      Serial.println(cardUID);
+      cardUID.toLowerCase();
+
+      rfid.PICC_HaltA();
+      rfid.PCD_StopCrypto1();
+    }else{
+      Serial.println("Card detected but could not pull UID");
+    }
+  }
+
+  if(cardUID_hold_time <= 0){
+    cardUID = "";
+    cardUID_hold_time = 10000;
+  }else{
+    cardUID_hold_time -= 100;
+  }
 }
 
 void handleCardRegistration() {
@@ -84,12 +127,31 @@ void handleCardRegistration() {
   }
   
   String jsonString = server.arg("plain");
+
+
+  JsonDocument doc; 
+  DeserializationError error = deserializeJson(doc, jsonString);
   
-  // check and write on the card
-  // -------------------------------
-  Serial.println("API request Sent to register card");
+  if (error) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON format received\"}");
+    return;
+  }
+
+
+  if(cardUID == ""){
+    server.send(400, "application/json", "{\"error\":\"Card not detected\"}");
+    return;
+  }else{
+    doc["cardUID"] = cardUID;
+  }
+
+
+  String modifiedJsonString;
+  serializeJson(doc, modifiedJsonString);
+
+  Serial.println("UID extracted from the Card and injected into the request body. API request Sending to register card");
   Serial.print("Data: ");
-  Serial.println(jsonString);
+  Serial.println(modifiedJsonString);
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
@@ -97,7 +159,7 @@ void handleCardRegistration() {
     http.begin("https://unicard-api.sajjadjonayed.com/api/v1/register-card"); 
     http.addHeader("Content-Type", "application/json");
 
-    int httpResponseCode = http.POST(jsonString);
+    int httpResponseCode = http.POST(modifiedJsonString);
 
     if (httpResponseCode == 201) {
       Serial.println("Registration Successful");
