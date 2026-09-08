@@ -1,20 +1,34 @@
-#include <WebServer.h>
-#include <WiFi.h>
+// File upload
 #include <LittleFS.h> 
+// wifi
+#include <WiFiManager.h> 
+#include <WiFi.h>
+// web server (incoming)
+#include <WebServer.h>
 #include <ESPmDNS.h>
+// web server (outgoing)
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <WiFiManager.h> 
+// display
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+// rfid
+#include <SPI.h>
+#include <MFRC522.h>
+
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// rfid Pins
+#define SS_PIN 5
+#define RST_PIN 4
 
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 WebServer server(80);
 
 void setup() {
@@ -48,7 +62,7 @@ void setup() {
   // Set a 3-minute timeout on the portal so it doesn't get stuck forever
   wifiManager.setConfigPortalTimeout(180);
 
-  wifiManager.resetSettings(); 
+  // wifiManager.resetSettings(); 
 
   if (!wifiManager.autoConnect("RFID-Reader-Setup")) {
     Serial.println("Failed to connect to Wi-Fi or hit timeout. Restarting...");
@@ -90,11 +104,41 @@ void setup() {
   display.println("UniCard Reader");
   display.display();
 
+
+  SPI.begin();
+  rfid.PCD_Init();
+  Serial.println("RC522 RFID module initialized.");
+
+  rfid.PCD_DumpVersionToSerial();
+
 }
 
 void loop() {
   server.handleClient();
   delay(2);
+
+  // Check if a new card is tapped on the reader
+  if (rfid.PICC_IsNewCardPresent()) {
+    
+    // read the card's data
+    if (rfid.PICC_ReadCardSerial()) {
+      Serial.print("Card UID Detected: ");
+      
+      String cardUID = "";
+      // Loop through the UID bytes and convert them to a readable string
+      for (byte i = 0; i < rfid.uid.size; i++) {
+        cardUID += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+        cardUID += String(rfid.uid.uidByte[i], HEX);
+      }
+      
+      cardUID.toUpperCase();
+      Serial.println(cardUID);
+
+      // Halt the card so it doesn't read the same tap 100 times a second
+      rfid.PICC_HaltA();
+      rfid.PCD_StopCrypto1();
+    }
+  }
 }
 
 void handleReaderRegistration() {
