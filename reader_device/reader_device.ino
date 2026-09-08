@@ -5,6 +5,15 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h> 
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 WebServer server(80);
 
@@ -39,7 +48,7 @@ void setup() {
   // Set a 3-minute timeout on the portal so it doesn't get stuck forever
   wifiManager.setConfigPortalTimeout(180);
 
-  // wifiManager.resetSettings(); 
+  wifiManager.resetSettings(); 
 
   if (!wifiManager.autoConnect("RFID-Reader-Setup")) {
     Serial.println("Failed to connect to Wi-Fi or hit timeout. Restarting...");
@@ -66,6 +75,21 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started! Type the IP address into your browser.");
+
+
+
+  // Display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed. Check wiring!"));
+    while(1); 
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("UniCard Reader");
+  display.display();
+
 }
 
 void loop() {
@@ -83,6 +107,7 @@ void handleReaderRegistration() {
   
   // check if the reader is already registered
   // -------------------------------
+  
 
   Serial.println("API request Sent to register card");
   Serial.print("Data: ");
@@ -97,6 +122,9 @@ void handleReaderRegistration() {
     int httpResponseCode = http.POST(jsonString);
 
     if (httpResponseCode == 201) {
+      showSuccessAnimation();
+      display.display();
+
       Serial.println("Reader Registration Successful");
       server.send(200, "application/json", "{\"status\":\"success\"}");
     } else {
@@ -109,6 +137,57 @@ void handleReaderRegistration() {
     
     http.end();
   } else {
-    server.send(503, "application/json", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
+    server.send(503, "application/jso n", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
   }
+}
+
+
+
+
+void showSuccessAnimation() {
+  int centerX = 64;
+  int centerY = 40; 
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("UniCard System");
+  display.display();
+
+  for(int r = 0; r <= 14; r += 2) {
+    if (r > 0) {
+      display.drawCircle(centerX, centerY, r - 2, SSD1306_BLACK); 
+    }
+    display.drawCircle(centerX, centerY, r, SSD1306_WHITE);
+    display.display();
+    delay(20); 
+  }
+
+  // short leg of the checkmark
+  // Starts on the left, goes down and right
+  for(int i = 0; i <= 6; i++) {
+    display.drawLine(54, 40, 54 + i, 40 + i, SSD1306_WHITE);
+    display.display();
+    delay(25);
+  }
+
+  // long leg of the checkmark
+  // Starts at the bottom, goes up and right
+  for(int i = 0; i <= 12; i++) {
+    display.drawLine(60, 46, 60 + i, 46 - i, SSD1306_WHITE);
+    display.display();
+    delay(25);
+  }
+
+  // Add the "SUCCESS" text just above the circle
+  display.setTextSize(1);
+  display.setCursor(43, 18);
+  display.println("SUCCESS");
+  display.display();
+  
+  // Hold the success screen for 2.5 seconds before it clears
+  delay(2500); 
+  display.clearDisplay();
+  display.display();
 }
