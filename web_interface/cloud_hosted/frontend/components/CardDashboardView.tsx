@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { logout } from '@/Services/card';
 import toast from 'react-hot-toast';
 
@@ -13,10 +14,12 @@ interface UserData {
   doorcode: string;
   email: string;
   balance: number;
+  cardUID: string;
 }
 
 export default function CardDashboardView({ user }: { user: UserData }) {
   const router = useRouter();
+  const [isCardPasswordVisible, setIsCardPasswordVisible] = useState(false);
 
   const handleSignOut = async () => {
     const result = await logout();
@@ -80,7 +83,7 @@ export default function CardDashboardView({ user }: { user: UserData }) {
                   </div>
                   <div className="text-right">
                     <p className="text-xs uppercase tracking-widest opacity-70 mb-1">ID Number</p>
-                    <p className="font-mono text-sm opacity-90">{user._id.slice(-12).toUpperCase()}</p>
+                    <p className="font-mono text-sm opacity-90">{user.cardUID.slice(-12).toUpperCase()}</p>
                   </div>
                 </div>
               </div>
@@ -135,8 +138,17 @@ export default function CardDashboardView({ user }: { user: UserData }) {
                 <div className="group">
                   <p className="text-xs uppercase tracking-widest text-brand-secondary font-medium mb-2 group-hover:text-brand-primary transition-colors">Card Password</p>
                   <div className="flex items-center justify-between p-3 bg-brand-bg rounded-xl border border-brand-secondary/20">
-                    <span className="font-mono text-xl tracking-widest font-bold">{user.cardPassword}</span>
-                    <span className="text-[10px] uppercase opacity-40">Private</span>
+                    <span className="font-mono text-xl tracking-widest font-bold" aria-live="polite">
+                      {isCardPasswordVisible ? user.cardPassword : '********'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCardPasswordVisible((visible) => !visible)}
+                      className="text-[10px] uppercase opacity-60 hover:opacity-100 transition-opacity"
+                      aria-label={isCardPasswordVisible ? 'Hide card password' : 'Show card password'}
+                    >
+                      {isCardPasswordVisible ? 'Hide' : 'Show'}
+                    </button>
                   </div>
                 </div>
               </div>

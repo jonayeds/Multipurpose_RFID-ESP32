@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { logout } from '@/Services/card';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,7 @@ interface ReaderData {
 
 export default function ReaderDashboardView({ reader }: { reader: ReaderData }) {
   const router = useRouter();
+  const [isReaderPasswordVisible, setIsReaderPasswordVisible] = useState(false);
 
   const handleSignOut = async() => {
     const result= await logout();
@@ -143,8 +145,17 @@ export default function ReaderDashboardView({ reader }: { reader: ReaderData }) 
                 <div className="group">
                   <p className="text-xs uppercase tracking-widest text-brand-secondary font-medium mb-2 group-hover:text-brand-primary transition-colors">Reader Password</p>
                   <div className="flex items-center justify-between p-3 bg-brand-bg rounded-xl border border-brand-secondary/20">
-                    <span className="font-mono text-xl tracking-widest font-bold">{reader.readerPassword || '----'}</span>
-                    <span className="text-[10px] uppercase opacity-40">Secure</span>
+                    <span className="font-mono text-xl tracking-widest font-bold" aria-live="polite">
+                      {isReaderPasswordVisible ? reader.readerPassword || '----' : '********'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsReaderPasswordVisible((visible) => !visible)}
+                      className="text-[10px] uppercase opacity-60 hover:opacity-100 transition-opacity"
+                      aria-label={isReaderPasswordVisible ? 'Hide reader password' : 'Show reader password'}
+                    >
+                      {isReaderPasswordVisible ? 'Hide' : 'Show'}
+                    </button>
                   </div>
                 </div>
               </div>
