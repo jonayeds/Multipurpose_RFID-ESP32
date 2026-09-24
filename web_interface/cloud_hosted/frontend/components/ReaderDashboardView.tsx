@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { logout } from '@/Services/card';
+import { getReaderEntries } from '@/Services/reader';
 import toast from 'react-hot-toast';
 
 interface ReaderData {
@@ -54,8 +55,10 @@ export default function ReaderDashboardView({
   entries: CardEntry[];
 }) {
   const router = useRouter();
+  const [currentEntries, setCurrentEntries] = useState(entries);
   const [isReaderPasswordVisible, setIsReaderPasswordVisible] = useState(false);
-  const sortedEntries = [...entries].sort((firstEntry, secondEntry) => {
+  const [isRefreshingEntries, setIsRefreshingEntries] = useState(false);
+  const sortedEntries = [...currentEntries].sort((firstEntry, secondEntry) => {
     const firstTime = new Date(firstEntry.createdAt).getTime();
     const secondTime = new Date(secondEntry.createdAt).getTime();
 
@@ -63,6 +66,19 @@ export default function ReaderDashboardView({
     if (Number.isNaN(secondTime)) return -1;
     return secondTime - firstTime;
   });
+
+  const handleRefreshEntries = async () => {
+    setIsRefreshingEntries(true);
+    const response = await getReaderEntries();
+
+    if (response.success && Array.isArray(response.data)) {
+      setCurrentEntries(response.data);
+    } else {
+      toast.error(response?.message || response?.error || 'Unable to refresh card entries');
+    }
+
+    setIsRefreshingEntries(false);
+  };
 
   const handleSignOut = async() => {
     const result= await logout();
@@ -252,12 +268,41 @@ export default function ReaderDashboardView({
               <h2 className="font-brand-serif text-2xl font-medium">Card Activity</h2>
               <p className="mt-1 text-sm opacity-60">Recent card entries recorded by this reader.</p>
             </div>
-            <span className="w-fit rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-primary">
-              {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="w-fit rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-primary">
+                {currentEntries.length} {currentEntries.length === 1 ? 'entry' : 'entries'}
+              </span>
+              <button
+                type="button"
+                onClick={handleRefreshEntries}
+                disabled={isRefreshingEntries}
+                className="inline-flex items-center gap-2 rounded-full border border-brand-secondary/30 px-3 py-1.5 text-xs font-medium uppercase tracking-widest transition-colors hover:bg-brand-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Reload card entries"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={isRefreshingEntries ? 'animate-spin' : ''}
+                  aria-hidden="true"
+                >
+                  <path d="M3 12a9 9 0 0 1 15.36-6.36L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-15.36 6.36L3 16" />
+                  <path d="M3 21v-5h5" />
+                </svg>
+                {isRefreshingEntries ? 'Loading' : 'Reload'}
+              </button>
+            </div>
           </div>
 
-          {entries.length > 0 ? (
+          {currentEntries.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-225 border-collapse text-left">
                 <thead className="bg-brand-bg/70 text-[10px] uppercase tracking-widest opacity-70">

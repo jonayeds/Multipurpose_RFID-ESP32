@@ -56,5 +56,8 @@ export const getReaderEntries = async () => {
   })
 
   const data = await response.json(); 
+  if (!response.ok) {
+    return { success: false, message: data.error || "Failed to fetch reader entries" };
+  }
   return { data, success: response.ok };
 }
