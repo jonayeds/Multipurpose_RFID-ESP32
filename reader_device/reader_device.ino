@@ -223,12 +223,22 @@ void loop() {
               display.display();
 
               // reduce card balance
-              display.clearDisplay();
-              display.setTextSize(1);
-              display.setCursor(0, 20);
-              display.setTextColor(SSD1306_WHITE);
-              display.println("Payment Successfull");
-              display.display();
+              long prevBalance=userBalance;
+              deductBalance( readerId, cardUID);
+              if(userBalance == (prevBalance-deductionAmount)){
+                display.setTextSize(1);
+                display.setCursor(0, 50);
+                display.setTextColor(SSD1306_WHITE);
+                display.println("Payment Successfull");
+                display.display();
+              }else{
+                display.clearDisplay();
+                display.setTextSize(1);
+                display.setCursor(0, 50);
+                display.setTextColor(SSD1306_WHITE);
+                display.println("Payment could not be completed");
+                display.display();
+              }
             }else{
               display.clearDisplay();
               display.setTextSize(1);
@@ -485,4 +495,29 @@ void fetchReaderConfiguration() {
     }
     http.end();
   }
+}
+
+void deductBalance(String readerId, String cardUID){
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = "https://unicard-api.sajjadjonayed.com/api/v1/deduct-balance/" + cardUID + "/" + readerId;
+
+    Serial.print("\nUpdating Card's balance from: ");
+    Serial.println(url);
+
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.PATCH("{}");
+
+    if (httpResponseCode == 200) {
+      String payload = http.getString();
+      Serial.println("Response received: " + payload);
+      userBalance -= deductionAmount;
+    } else {
+      Serial.print("Failed to fetch config. HTTP Error: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
+
 }
