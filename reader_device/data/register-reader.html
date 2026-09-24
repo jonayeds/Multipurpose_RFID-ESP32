@@ -385,7 +385,7 @@
         } else {
           const errorData = await response.json();
           console.error('Registration failed:', errorData);
-          showMessage("Registration failed. Please check your input.", "error");
+          showMessage(errorData?.error || "Registration failed. Please check your input.", "error");
           submitBtn.disabled = false;
           submitBtn.classList.remove('btn-loading');
         }
