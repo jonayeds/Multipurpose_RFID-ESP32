@@ -212,16 +212,16 @@ api.post("/login-reader", async (request, response) => {
   }
 });
 
-api.post("/add-entry", async (request, response) =>{
-  const { cardUID, readerId, mode} = request.body;
+api.post("/add-entry", async (request, response) => {
+  const { cardUID, readerId, mode } = request.body;
   try {
-    const reader = await Reader.findOne({ readerId });  
+    const reader = await Reader.findOne({ readerId });
     if (!reader) {
-      return response.status(404).json({ error: "Reader not found" });  
+      return response.status(404).json({ error: "Reader not found" });
     }
     const card = await Card.findOne({ cardUID });
     if (!card) {
-      return response.status(404).json({ error: "Card not found" });  
+      return response.status(404).json({ error: "Card not found" });
     }
     const currentTime = new Date();
     const result = await Entry.insertOne({
@@ -230,7 +230,10 @@ api.post("/add-entry", async (request, response) =>{
       mode,
       createdAt: currentTime,
     });
-    response.json({ message: "Entry added successfully", insertedId: result.insertedId  });
+    response.json({
+      message: "Entry added successfully",
+      insertedId: result.insertedId,
+    });
   } catch (error) {
     console.error("Unable to add entry:", error.message);
     response
@@ -298,6 +301,53 @@ api.get("/get-reader/:readerId", async (request, response) => {
   }
 });
 
+api.get(
+  "/get-entries",
+  authenticateUser("reader"),
+  async (request, response) => {
+    try {
+      const reader = await Reader.findOne({
+        _id: new ObjectId(request.user.id),
+      });
+
+      if (!reader) {
+        return response.status(404).json({ error: "Reader not found" });
+      }
+      const entries = await Entry.find({ readerId: reader.readerId }).toArray();
+
+      const entriesWithCardDetails = await Entry.aggregate([
+        { $match: { readerId: reader.readerId } },
+        {
+          $lookup: {
+            from: "cards",
+            localField: "cardUID",
+            foreignField: "cardUID",
+            as: "cardDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$cardDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $unset: [
+            "cardDetails._id",
+            "cardDetails.cardPassword",
+            "cardDetails.balance",
+            "cardDetails.doorcode",
+          ],
+        },
+      ]).toArray();
+      response.json(entriesWithCardDetails);
+    } catch (error) {
+      console.error("Unable to fetch entries:", error.message);
+      response.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
 api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
   try {
     const { cardUID, readerId } = request.params;
@@ -305,7 +355,7 @@ api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
     if (!reader) {
       return response.status(404).json({ error: "Reader not found" });
     }
-    const card = await Card.findOne({ cardUID});
+    const card = await Card.findOne({ cardUID });
     if (!card) {
       return response.status(404).json({ error: "Card not found" });
     }
@@ -332,9 +382,9 @@ api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
       cardUID: cardUID,
       readerId: readerId,
       mode: "payment",
-      createdAt: new Date(),  
+      createdAt: new Date(),
     });
-    response.status(200).json({ message: "Balance deducted successfully" });  
+    response.status(200).json({ message: "Balance deducted successfully" });
   } catch (error) {
     console.error("Unable to deduct balance:", error.message);
     response
