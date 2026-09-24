@@ -1,7 +1,7 @@
 // File upload
-#include <LittleFS.h> 
+#include <LittleFS.h>
 // wifi
-#include <WiFiManager.h> 
+#include <WiFiManager.h>
 #include <WiFi.h>
 // web server (incoming)
 #include <WebServer.h>
@@ -30,17 +30,23 @@ MFRC522 rfid(SDA_PIN, RST_PIN);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 WebServer server(80);
 
-String readerId="";
+// reader info
+String readerId = "";
 String readerMode = "";
 String readerDoorcode = "";
 int deductionAmount = 0;
 
+// card info
+String username="";
+String userDoorcode="";
+long userBalance=0;
+
 void setup() {
   Serial.begin(9600);
-  delay(1000); 
+  delay(1000);
   Serial.println("\n-----READER Device-----");
   Serial.println("--- Initializing LittleFS ---");
-  
+
   if (!LittleFS.begin(true)) {
     Serial.println("Error mounting LittleFS!");
     return;
@@ -48,12 +54,12 @@ void setup() {
 
   File root = LittleFS.open("/");
   File file = root.openNextFile();
-  
+
   if (!file) {
     Serial.println("No files found in LittleFS!");
   } else {
     Serial.println("Files found on the reader:");
-    while(file){
+    while (file) {
       Serial.print(" - /");
       Serial.println(file.name());
       file = root.openNextFile();
@@ -62,11 +68,11 @@ void setup() {
 
   Serial.println("\n--- Starting Wi-FiManager ---");
   WiFiManager wifiManager;
-  
+
   // Set a 3-minute timeout on the portal so it doesn't get stuck forever
   wifiManager.setConfigPortalTimeout(180);
 
-  // wifiManager.resetSettings(); 
+  // wifiManager.resetSettings();
 
   if (!wifiManager.autoConnect("RFID-Reader-Setup")) {
     Serial.println("Failed to connect to Wi-Fi or hit timeout. Restarting...");
@@ -79,7 +85,7 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  if(MDNS.begin("reader")){ // http://reader.local
+  if (MDNS.begin("reader")) {  // http://reader.local
     Serial.println("MDNS initialized");
   }
 
@@ -97,9 +103,10 @@ void setup() {
 
 
   // Display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("SSD1306 allocation failed. Check wiring!"));
-    while(1); 
+    while (1)
+      ;
   }
   display.clearDisplay();
   display.setTextSize(1);
@@ -120,7 +127,6 @@ void setup() {
   Serial.print("This Reader's Unique ID is: ");
   Serial.println(readerId);
   fetchReaderConfiguration();
-
 }
 
 void loop() {
@@ -129,62 +135,119 @@ void loop() {
 
   // Check if a new card is tapped on the reader
   if (rfid.PICC_IsNewCardPresent()) {
-    
+
     // read the card's data
     if (rfid.PICC_ReadCardSerial()) {
       Serial.print("Card UID Detected: ");
-      
-      String cardUID = "";
-      // Loop through the UID bytes and convert them to a readable string
-      for (byte i = 0; i < rfid.uid.size; i++) {
-        cardUID += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
-        cardUID += String(rfid.uid.uidByte[i], HEX);
-      }
-      
-      // cardUID.toUpperCase();
-      Serial.println(cardUID);
+
+      if (readerMode != "") {
+
+        String cardUID = "";
+        // Loop through the UID bytes and convert them to a readable string
+        for (byte i = 0; i < rfid.uid.size; i++) {
+          cardUID += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+          cardUID += String(rfid.uid.uidByte[i], HEX);
+        }
+
+        // cardUID.toUpperCase();
+        Serial.println(cardUID);
 
 
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setCursor(0, 20);
-      display.setTextColor(SSD1306_WHITE);
-      display.println("Varifying...");
-      display.display();
-
-      cardUID.toLowerCase();
-      String userName = fetchCardData(cardUID);
-      Serial.println(userName);
-      String firstName = userName;
-      int spaceIndex = userName.indexOf(' ');
-      if (spaceIndex != -1) { 
-          firstName = userName.substring(0, spaceIndex);
-      }
-      
-      if(userName == ""){
-        // Failed to fetch or parse the name
         display.clearDisplay();
         display.setTextSize(1);
         display.setCursor(0, 20);
         display.setTextColor(SSD1306_WHITE);
-        display.println("Card is not verified");
+        display.println("Varifying...");
         display.display();
+
+        cardUID.toLowerCase();
+        fetchCardData(cardUID);
+
+        String firstName = username;
+        int spaceIndex = username.indexOf(' ');
+        if (spaceIndex != -1) {
+          firstName = username.substring(0, spaceIndex);
+        }
+
+        if (username == "") {
+          // Failed to fetch or parse the name
+          display.clearDisplay();
+          display.setTextSize(1);
+          display.setCursor(0, 20);
+          display.setTextColor(SSD1306_WHITE);
+          display.println("Card is not verified");
+          display.display();
+        } else {
+
+          // Check doorcode if mode is doorcode
+          if(readerMode=="doorcode"){
+            if(userDoorcode && (readerDoorcode == userDoorcode)){
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("---Welcome---");
+
+              display.setTextSize(2);
+              display.setCursor(0, 30);
+              display.setTextColor(SSD1306_WHITE);
+              display.println(firstName);
+              display.display();
+
+              display.setTextSize(1);
+              display.setCursor(0, 50);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("Door code Matched");
+              display.display();
+            }else{
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("Wrong Door code!!");
+              display.display();
+            }
+          }
+          else if(readerMode == "payment"){
+            if(userBalance >= deductionAmount){
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("---Welcome---");
+
+              display.setTextSize(2);
+              display.setCursor(0, 30);
+              display.setTextColor(SSD1306_WHITE);
+              display.println(firstName);
+              display.display();
+
+              // reduce card balance
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("Payment Successfull");
+              display.display();
+            }else{
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("Not enough Balance!!");
+              display.display();
+            }
+          }
+        }
+
       } else {
-        // Successfully got the user name
         display.clearDisplay();
         display.setTextSize(1);
         display.setCursor(0, 20);
         display.setTextColor(SSD1306_WHITE);
-        display.println("---Welcome---");
-
-        display.setTextSize(2);
-        display.setCursor(0, 30);
-        display.setTextColor(SSD1306_WHITE);
-        display.println(firstName);
+        display.println("Reader Not Registered");
         display.display();
       }
-
-      
 
       // Halt the card so it doesn't read the same tap 100 times a second
       rfid.PICC_HaltA();
@@ -202,14 +265,14 @@ void handleReaderRegistration() {
     server.send(400, "application/json", "{\"error\":\"No body received\"}");
     return;
   }
-  
+
   String jsonString = server.arg("plain");
-  
-  if(readerMode!=""){
+
+  if (readerMode != "") {
     server.send(403, "application/json", "{\"error\":\"The Reader is already registered\"}");
     return;
   }
-  if(readerId == ""){
+  if (readerId == "") {
     server.send(404, "application/json", "{\"error\":\"The Reder is not recognized\"}");
     return;
   }
@@ -232,17 +295,12 @@ void handleReaderRegistration() {
   Serial.print("Data: ");
   Serial.println(modifiedJsonString);
 
-  const char* modeVal = doc["mode"];
-  readerMode = modeVal ? String(modeVal) : "";
 
-  const char* doorcodeVal = doc["doorcode"];
-  readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
-  deductionAmount = doc["deductionAmount"] | 0;
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    
-    http.begin("https://unicard-api.sajjadjonayed.com/api/v1/register-reader"); 
+
+    http.begin("https://unicard-api.sajjadjonayed.com/api/v1/register-reader");
     http.addHeader("Content-Type", "application/json");
 
     int httpResponseCode = http.POST(modifiedJsonString);
@@ -252,6 +310,12 @@ void handleReaderRegistration() {
       display.display();
 
       Serial.println("Reader Registration Successful");
+      const char* modeVal = doc["mode"];
+      readerMode = modeVal ? String(modeVal) : "";
+
+      const char* doorcodeVal = doc["doorcode"];
+      readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
+      deductionAmount = doc["deductionAmount"] | 0;
       server.send(200, "application/json", "{\"status\":\"success\"}");
     } else {
       String responseStr = http.getString();
@@ -260,7 +324,7 @@ void handleReaderRegistration() {
       Serial.print("Response: ");
       Serial.println(responseStr);
     }
-    
+
     http.end();
   } else {
     server.send(503, "application/json", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
@@ -268,11 +332,9 @@ void handleReaderRegistration() {
 }
 
 
-
-
 void showSuccessAnimation() {
   int centerX = 64;
-  int centerY = 40; 
+  int centerY = 40;
 
   display.clearDisplay();
   display.setTextSize(1);
@@ -281,18 +343,18 @@ void showSuccessAnimation() {
   display.println("UniCard System");
   display.display();
 
-  for(int r = 0; r <= 14; r += 2) {
+  for (int r = 0; r <= 14; r += 2) {
     if (r > 0) {
-      display.drawCircle(centerX, centerY, r - 2, SSD1306_BLACK); 
+      display.drawCircle(centerX, centerY, r - 2, SSD1306_BLACK);
     }
     display.drawCircle(centerX, centerY, r, SSD1306_WHITE);
     display.display();
-    delay(20); 
+    delay(20);
   }
 
   // short leg of the checkmark
   // Starts on the left, goes down and right
-  for(int i = 0; i <= 6; i++) {
+  for (int i = 0; i <= 6; i++) {
     display.drawLine(54, 40, 54 + i, 40 + i, SSD1306_WHITE);
     display.display();
     delay(25);
@@ -300,7 +362,7 @@ void showSuccessAnimation() {
 
   // long leg of the checkmark
   // Starts at the bottom, goes up and right
-  for(int i = 0; i <= 12; i++) {
+  for (int i = 0; i <= 12; i++) {
     display.drawLine(60, 46, 60 + i, 46 - i, SSD1306_WHITE);
     display.display();
     delay(25);
@@ -311,40 +373,50 @@ void showSuccessAnimation() {
   display.setCursor(43, 18);
   display.println("SUCCESS");
   display.display();
-  
+
   // Hold the success screen for 2.5 seconds before it clears
-  delay(2500); 
+  delay(2500);
   display.clearDisplay();
   display.display();
 }
 
 
-String fetchCardData(String uid) {
-  String fetchedName = "";
+void fetchCardData(String uid) {
+  String doorcode = "";
+  long balance = 0;
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     String serverPath = "https://unicard-api.sajjadjonayed.com/api/v1/get-card/" + uid;
-    
+
     Serial.print("Fetching data from: ");
     Serial.println(serverPath);
 
     http.begin(serverPath);
     int httpResponseCode = http.GET();
-    
+
     if (httpResponseCode > 0) {
       Serial.print("HTTP Response Code: ");
       Serial.println(httpResponseCode);
-      
+
       if (httpResponseCode == 200) {
         String payload = http.getString();
         Serial.println("Response Payload: " + payload);
-        
+
         JsonDocument doc;
         DeserializationError error = deserializeJson(doc, payload);
-        
+
         if (!error) {
-          fetchedName = doc["fullname"].as<String>(); 
+          username = doc["fullname"].as<String>();
+          const char* doorcodeVal = doc["doorcode"];
+          userDoorcode = doorcodeVal ? String(doorcodeVal) : "";
+          userBalance = doc["balance"] | 0;
+
+          Serial.println("Parsed Successfully:");
+          Serial.println("Name: " + username);
+          Serial.println("Doorcode: " + (userDoorcode == "" ? "None" : userDoorcode));
+          Serial.println("Balance: " + String(userBalance));
+
         } else {
           Serial.print("JSON Parsing failed: ");
           Serial.println(error.c_str());
@@ -357,13 +429,14 @@ String fetchCardData(String uid) {
       Serial.print("Error on HTTP request: ");
       Serial.println(httpResponseCode);
     }
-    
+
     http.end();
   } else {
     Serial.println("Wi-Fi Disconnected. Cannot verify card.");
   }
+
   
-  return fetchedName; 
+  return;
 }
 
 
@@ -371,7 +444,7 @@ void fetchReaderConfiguration() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     String url = "https://unicard-api.sajjadjonayed.com/api/v1/get-reader/" + readerId;
-    
+
     Serial.print("\nFetching reader config from: ");
     Serial.println(url);
 
@@ -394,9 +467,6 @@ void fetchReaderConfiguration() {
         const char* doorcodeVal = doc["doorcode"];
         readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
 
-
-
-        // Extract integers. The '| 0' provides a safe default if the field is missing or null
         deductionAmount = doc["deductionAmount"] | 0;
 
         Serial.println("\n--- Reader Successfully Configured ---");
@@ -404,7 +474,7 @@ void fetchReaderConfiguration() {
         Serial.println("Doorcode: " + (readerDoorcode == "" ? "None" : readerDoorcode));
         Serial.println("Deduction: $" + String(deductionAmount));
         Serial.println("------------------------------------\n");
-        
+
       } else {
         Serial.print("JSON Parsing failed: ");
         Serial.println(error.c_str());
@@ -412,7 +482,6 @@ void fetchReaderConfiguration() {
     } else {
       Serial.print("Failed to fetch config. HTTP Error: ");
       Serial.println(httpResponseCode);
-      // Optional: Turn on a RED RGB LED here to indicate the reader isn't registered yet
     }
     http.end();
   }
