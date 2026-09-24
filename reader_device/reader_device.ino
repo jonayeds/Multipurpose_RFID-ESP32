@@ -179,9 +179,9 @@ void loop() {
           display.display();
         } else {
 
-          // Check doorcode if mode is doorcode
-          if(readerMode=="doorcode"){
-            if(userDoorcode && (readerDoorcode == userDoorcode)){
+          // Check doorcode if mode is doorlock
+          if(readerMode=="doorlock"){
+            if(readerDoorcode == userDoorcode){
               display.clearDisplay();
               display.setTextSize(1);
               display.setCursor(0, 20);
@@ -193,6 +193,8 @@ void loop() {
               display.setTextColor(SSD1306_WHITE);
               display.println(firstName);
               display.display();
+
+              addEntry(readerId, cardUID, readerMode);
 
               display.setTextSize(1);
               display.setCursor(0, 50);
@@ -266,6 +268,10 @@ void loop() {
       delay(5000);
       display.clearDisplay();
       display.display();
+
+      username="";
+      userBalance=0;
+      userDoorcode="";
     }
   }
 }
@@ -520,4 +526,43 @@ void deductBalance(String readerId, String cardUID){
     http.end();
   }
 
+}
+
+void addEntry(String readerId, String cardUID, String mode) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = "https://unicard-api.sajjadjonayed.com/api/v1/add-entry";
+
+    Serial.println("\nAdding new entry to database...");
+    
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+
+    JsonDocument doc;
+    doc["cardUID"] = cardUID;
+    doc["readerId"] = readerId;
+    doc["mode"] = mode;
+
+    String requestBody;
+    serializeJson(doc, requestBody);
+    
+    Serial.print("Payload: ");
+    Serial.println(requestBody);
+
+    int httpResponseCode = http.POST(requestBody);
+
+    if (httpResponseCode > 0) {
+      String responsePayload = http.getString();
+      Serial.print("HTTP Response Code: ");
+      Serial.println(httpResponseCode);
+      Serial.println("Response: " + responsePayload);
+    } else {
+      Serial.print("Failed to add entry. HTTP Error: ");
+      Serial.println(httpResponseCode);
+    }
+    
+    http.end();
+  } else {
+    Serial.println("Wi-Fi Disconnected. Cannot add entry.");
+  }
 }
