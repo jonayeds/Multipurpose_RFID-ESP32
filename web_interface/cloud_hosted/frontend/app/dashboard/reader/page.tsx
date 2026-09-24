@@ -1,10 +1,15 @@
 import React from 'react';
-import { getMyReader } from "@/Services/reader";
+import { getMyReader, getReaderEntries } from "@/Services/reader";
 import Link from 'next/link';
 import ReaderDashboardView from '@/components/ReaderDashboardView';
 
 export default async function ReaderDashboardPage() {
   const response = await getMyReader();
+  const entriesResponse = await getReaderEntries();
+  const entries =
+    entriesResponse.success && Array.isArray(entriesResponse.data)
+      ? entriesResponse.data
+      : [];
 
   if (!response || !response.success) {
     return (
@@ -20,5 +25,5 @@ export default async function ReaderDashboardPage() {
     );
   }
 
-  return <ReaderDashboardView reader={response.data} />;
+  return <ReaderDashboardView reader={response.data} entries={entries} />;
 }

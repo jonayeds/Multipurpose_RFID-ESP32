@@ -41,3 +41,20 @@ export const readerLogin = async (email: string, readerPassword: string) => {
   (await cookies()).set("token", data.token, { path: "/" });
   return { success: true, message: "Login successful" };
 };
+
+export const getReaderEntries = async () => {
+  const token = (await cookies()).get("token")?.value;
+  if (!token) {
+    return {
+      error: "No token found",
+    }
+  }
+  const response = await fetch(`${process.env.SERVER_URL}/get-entries`, {
+    headers: {
+      Authorization: `Bearer ${token}`, 
+    }
+  })
+
+  const data = await response.json(); 
+  return { data, success: response.ok };
+}

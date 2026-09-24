@@ -15,11 +15,54 @@ interface ReaderData {
   doorcode?: string;
   deductionAmount?: number | null;
   cardIds?: string[] | null;
+  readerId: string;
 }
 
-export default function ReaderDashboardView({ reader }: { reader: ReaderData }) {
+interface CardDetails {
+  fullname?: string;
+  phoneNumber?: string;
+  email?: string;
+  cardUID?: string;
+}
+
+interface CardEntry {
+  _id: string;
+  cardUID: string;
+  readerId: string;
+  mode: string;
+  createdAt: string;
+  cardDetails?: CardDetails;
+}
+
+function formatEntryDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown date';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+export default function ReaderDashboardView({
+  reader,
+  entries,
+}: {
+  reader: ReaderData;
+  entries: CardEntry[];
+}) {
   const router = useRouter();
   const [isReaderPasswordVisible, setIsReaderPasswordVisible] = useState(false);
+  const sortedEntries = [...entries].sort((firstEntry, secondEntry) => {
+    const firstTime = new Date(firstEntry.createdAt).getTime();
+    const secondTime = new Date(secondEntry.createdAt).getTime();
+
+    if (Number.isNaN(firstTime)) return 1;
+    if (Number.isNaN(secondTime)) return -1;
+    return secondTime - firstTime;
+  });
 
   const handleSignOut = async() => {
     const result= await logout();
@@ -84,7 +127,7 @@ export default function ReaderDashboardView({ reader }: { reader: ReaderData }) 
                   </div>
                   <div className="text-right">
                     <p className="text-xs uppercase tracking-widest opacity-70 mb-1">Reader ID</p>
-                    <p className="font-mono text-sm opacity-90">{reader._id.slice(-12).toUpperCase()}</p>
+                    <p className="font-mono text-sm opacity-90">{reader.readerId.toUpperCase()}</p>
                   </div>
                 </div>
               </div>
@@ -197,6 +240,74 @@ export default function ReaderDashboardView({ reader }: { reader: ReaderData }) 
 
           </div>
         </div>
+
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+          className="mt-12 overflow-hidden rounded-3xl border border-brand-secondary/30 bg-white/60 shadow-sm backdrop-blur-sm"
+        >
+          <div className="flex flex-col gap-2 border-b border-brand-secondary/20 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-8">
+            <div>
+              <h2 className="font-brand-serif text-2xl font-medium">Card Activity</h2>
+              <p className="mt-1 text-sm opacity-60">Recent card entries recorded by this reader.</p>
+            </div>
+            <span className="w-fit rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-widest text-brand-primary">
+              {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
+
+          {entries.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-225 border-collapse text-left">
+                <thead className="bg-brand-bg/70 text-[10px] uppercase tracking-widest opacity-70">
+                  <tr>
+                    <th scope="col" className="px-6 py-4 font-medium">Date &amp; time (local)</th>
+                    <th scope="col" className="px-6 py-4 font-medium">Card</th>
+                    <th scope="col" className="px-6 py-4 font-medium">Cardholder</th>
+                    <th scope="col" className="px-6 py-4 font-medium">Contact</th>
+                    <th scope="col" className="px-6 py-4 font-medium">Reader</th>
+                    <th scope="col" className="px-6 py-4 font-medium">Mode</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-secondary/15">
+                  {sortedEntries.map((entry) => (
+                    <tr key={entry._id} className="transition-colors hover:bg-brand-primary/5">
+                      <td className="whitespace-nowrap px-6 py-5 text-sm font-medium">
+                        {formatEntryDate(entry.createdAt)}
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="font-mono text-sm font-bold tracking-wide">{entry.cardUID}</p>
+                        <p className="mt-1 max-w-32 truncate font-mono text-[10px] opacity-40" title={entry._id}>
+                          ID {entry._id}
+                        </p>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="text-sm font-medium">{entry.cardDetails?.fullname || 'Unknown cardholder'}</p>
+                        <p className="mt-1 text-xs opacity-50">{entry.cardDetails?.cardUID || entry.cardUID}</p>
+                      </td>
+                      <td className="px-6 py-5 text-sm">
+                        <p>{entry.cardDetails?.email || 'No email'}</p>
+                        <p className="mt-1 text-xs opacity-50">{entry.cardDetails?.phoneNumber || 'No phone'}</p>
+                      </td>
+                      <td className="px-6 py-5 font-mono text-xs opacity-70">{entry.readerId}</td>
+                      <td className="px-6 py-5">
+                        <span className="inline-flex rounded-full border border-brand-primary/25 bg-brand-primary/10 px-3 py-1 text-xs font-medium capitalize text-brand-primary">
+                          {entry.mode}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-12 text-center md:px-8">
+              <p className="font-brand-serif text-xl">No card activity yet</p>
+              <p className="mt-2 text-sm opacity-55">Entries recorded by this reader will appear here.</p>
+            </div>
+          )}
+        </motion.section>
       </div>
     </main>
   );
