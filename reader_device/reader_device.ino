@@ -17,6 +17,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+#include <vector>
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
@@ -35,6 +37,7 @@ String readerId = "";
 String readerMode = "";
 String readerDoorcode = "";
 int deductionAmount = 0;
+std::vector<String> readerCardIds;
 
 // card info
 String username="";
@@ -247,6 +250,36 @@ void loop() {
               display.setCursor(0, 20);
               display.setTextColor(SSD1306_WHITE);
               display.println("Not enough Balance!!");
+              display.display();
+            }
+          }else if(readerMode == "identification"){
+            if(isCardAuthorized(cardUID)){
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("---Welcome---");
+
+              display.setTextSize(2);
+              display.setCursor(0, 30);
+              display.setTextColor(SSD1306_WHITE);
+              display.println(firstName);
+              display.display();
+
+              display.setTextSize(1);
+              display.setCursor(0, 50);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("you are authorized");
+              display.display();
+
+              addEntry(readerId, cardUID, readerMode);
+
+            }else{
+              display.clearDisplay();
+              display.setTextSize(1);
+              display.setCursor(0, 20);
+              display.setTextColor(SSD1306_WHITE);
+              display.println("Not authorized!!");
               display.display();
             }
           }
@@ -484,6 +517,15 @@ void fetchReaderConfiguration() {
         readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
 
         deductionAmount = doc["deductionAmount"] | 0;
+        
+
+        readerCardIds.clear();
+        JsonArray cardArray = doc["cardIds"].as<JsonArray>();
+        if (!cardArray.isNull()) {
+          for (JsonVariant v : cardArray) {
+            readerCardIds.push_back(v.as<String>());
+          }
+        }
 
         Serial.println("\n--- Reader Successfully Configured ---");
         Serial.println("Mode: " + readerMode);
@@ -565,4 +607,16 @@ void addEntry(String readerId, String cardUID, String mode) {
   } else {
     Serial.println("Wi-Fi Disconnected. Cannot add entry.");
   }
+}
+
+
+bool isCardAuthorized(String tappedUID) {
+  if (readerCardIds.size() == 0) return false; 
+  
+  for (int i = 0; i < readerCardIds.size(); i++) {
+    if (readerCardIds[i] == tappedUID) {
+      return true;
+    }
+  }
+  return false; 
 }
