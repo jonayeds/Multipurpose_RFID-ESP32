@@ -16,7 +16,6 @@
 // rfid
 #include <SPI.h>
 #include <MFRC522.h>
-// a1fb3065
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -30,6 +29,11 @@
 MFRC522 rfid(SDA_PIN, RST_PIN);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 WebServer server(80);
+
+String readerId="";
+String readerMode = "";
+String readerDoorcode = "";
+int deductionAmount = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -110,6 +114,12 @@ void setup() {
   Serial.println("RC522 RFID module initialized.");
 
   rfid.PCD_DumpVersionToSerial();
+
+  // get mac address
+  readerId = WiFi.macAddress();
+  Serial.print("This Reader's Unique ID is: ");
+  Serial.println(readerId);
+  fetchReaderConfiguration();
 
 }
 
@@ -195,13 +205,39 @@ void handleReaderRegistration() {
   
   String jsonString = server.arg("plain");
   
-  // check if the reader is already registered
-  // -------------------------------
-  
+  if(readerMode!=""){
+    server.send(403, "application/json", "{\"error\":\"The Reader is already registered\"}");
+    return;
+  }
+  if(readerId == ""){
+    server.send(404, "application/json", "{\"error\":\"The Reder is not recognized\"}");
+    return;
+  }
 
-  Serial.println("API request Sent to register card");
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, jsonString);
+
+  if (error) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON format received\"}");
+    return;
+  }
+
+  // Inject the readerId into the JSON payload
+  doc["readerId"] = readerId;
+
+  String modifiedJsonString;
+  serializeJson(doc, modifiedJsonString);
+
+  Serial.println("API request Sent to register reader");
   Serial.print("Data: ");
-  Serial.println(jsonString);
+  Serial.println(modifiedJsonString);
+
+  const char* modeVal = doc["mode"];
+  readerMode = modeVal ? String(modeVal) : "";
+
+  const char* doorcodeVal = doc["doorcode"];
+  readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
+  deductionAmount = doc["deductionAmount"] | 0;
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
@@ -209,7 +245,7 @@ void handleReaderRegistration() {
     http.begin("https://unicard-api.sajjadjonayed.com/api/v1/register-reader"); 
     http.addHeader("Content-Type", "application/json");
 
-    int httpResponseCode = http.POST(jsonString);
+    int httpResponseCode = http.POST(modifiedJsonString);
 
     if (httpResponseCode == 201) {
       showSuccessAnimation();
@@ -227,7 +263,7 @@ void handleReaderRegistration() {
     
     http.end();
   } else {
-    server.send(503, "application/jso n", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
+    server.send(503, "application/json", "{\"error\":\"ESP32 lost Wi-Fi connection\"}");
   }
 }
 
@@ -328,4 +364,56 @@ String fetchCardData(String uid) {
   }
   
   return fetchedName; 
+}
+
+
+void fetchReaderConfiguration() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = "https://unicard-api.sajjadjonayed.com/api/v1/get-reader/" + readerId;
+    
+    Serial.print("\nFetching reader config from: ");
+    Serial.println(url);
+
+    http.begin(url);
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode == 200) {
+      String payload = http.getString();
+      Serial.println("Config received: " + payload);
+
+      // Create JSON document
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (!error) {
+        // Safely extract strings. If the JSON value is null, default to an empty string ("")
+        const char* modeVal = doc["mode"];
+        readerMode = modeVal ? String(modeVal) : "";
+
+        const char* doorcodeVal = doc["doorcode"];
+        readerDoorcode = doorcodeVal ? String(doorcodeVal) : "";
+
+
+
+        // Extract integers. The '| 0' provides a safe default if the field is missing or null
+        deductionAmount = doc["deductionAmount"] | 0;
+
+        Serial.println("\n--- Reader Successfully Configured ---");
+        Serial.println("Mode: " + readerMode);
+        Serial.println("Doorcode: " + (readerDoorcode == "" ? "None" : readerDoorcode));
+        Serial.println("Deduction: $" + String(deductionAmount));
+        Serial.println("------------------------------------\n");
+        
+      } else {
+        Serial.print("JSON Parsing failed: ");
+        Serial.println(error.c_str());
+      }
+    } else {
+      Serial.print("Failed to fetch config. HTTP Error: ");
+      Serial.println(httpResponseCode);
+      // Optional: Turn on a RED RGB LED here to indicate the reader isn't registered yet
+    }
+    http.end();
+  }
 }
