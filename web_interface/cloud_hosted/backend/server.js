@@ -244,19 +244,21 @@ api.get(
   "/get-my-reader",
   authenticateUser("reader"),
   async (request, response) => {
-  try {
-    const reader = await Reader.findOne({ _id: new ObjectId(request.user.id) });
-    if (!reader) {
-      return response.status(404).json({ error: "Reader not found" });
+    try {
+      const reader = await Reader.findOne({
+        _id: new ObjectId(request.user.id),
+      });
+      if (!reader) {
+        return response.status(404).json({ error: "Reader not found" });
+      }
+      response.json(reader);
+    } catch (error) {
+      console.error("Unable to fetch authenticated reader:", error.message);
+      response.status(400).json({ error: "Invalid reader identifier" });
     }
-    response.json(reader);
-  } catch (error) {
-    console.error("Unable to fetch authenticated reader:", error.message);
-    response.status(400).json({ error: "Invalid reader identifier" });
-  }
   },
 );
-api.get("/get-reader/:readerId",  async (request, response) => {
+api.get("/get-reader/:readerId", async (request, response) => {
   try {
     const reader = await Reader.findOne({ readerId: request.params.readerId });
     if (!reader) {
@@ -269,6 +271,44 @@ api.get("/get-reader/:readerId",  async (request, response) => {
   }
 });
 
+api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
+  try {
+    const { cardUID, readerId } = request.params;
+    const reader = await Reader.findOne({ readerId });
+    if (!reader) {
+      return response.status(404).json({ error: "Reader not found" });
+    }
+    const card = await Card.findOne({ cardUID});
+    if (!card) {
+      return response.status(404).json({ error: "Card not found" });
+    }
+    if (reader.mode !== "payment") {
+      return response
+        .status(400)
+        .json({ error: "Reader is not in payment mode" });
+    }
+    if (card.balance < reader.deductionAmount) {
+      return response
+        .status(400)
+        .json({ error: "Insufficient balance on card" });
+    }
+    const updateResult = await Card.updateOne(
+      { cardUID },
+      { $inc: { balance: -reader.deductionAmount } },
+    );
+    if (updateResult.nModified === 0) {
+      return response
+        .status(400)
+        .json({ error: "Unable to deduct balance from card" });
+    }
+    response.status(200).json({ message: "Balance deducted successfully" });  
+  } catch (error) {
+    console.error("Unable to deduct balance:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to deduct balance" });
+  }
+});
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
