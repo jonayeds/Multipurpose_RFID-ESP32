@@ -121,7 +121,8 @@ api.post("/register-reader", async (request, response) => {
       !data.email ||
       !data.readerPassword ||
       !validModes.includes(data.mode) ||
-      !modeDataIsValid
+      !modeDataIsValid ||
+      !data.readerId
     ) {
       throw new Error("Data not fulfilled to register reader");
     }
@@ -255,6 +256,19 @@ api.get(
   }
   },
 );
+api.get("/get-reader/:readerId",  async (request, response) => {
+  try {
+    const reader = await Reader.findOne({ readerId: request.params.readerId });
+    if (!reader) {
+      return response.status(404).json({ error: "Reader not found" });
+    }
+    response.json(reader);
+  } catch (error) {
+    console.error("Unable to fetch authenticated reader:", error.message);
+    response.status(400).json({ error: "Invalid reader identifier" });
+  }
+});
+
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
