@@ -16,6 +16,7 @@ if (!databaseUrl) {
 const mongoClient = new MongoClient(databaseUrl);
 const Card = mongoClient.db().collection("cards");
 const Reader = mongoClient.db().collection("readers");
+const Entry = mongoClient.db().collection("entries");
 
 // Enable CORS for all origins (allows Next.js & ESP32 local requests)
 app.use(cors());
@@ -211,6 +212,33 @@ api.post("/login-reader", async (request, response) => {
   }
 });
 
+api.post("/add-entry", async (request, response) =>{
+  const { cardUID, readerId, mode} = request.body;
+  try {
+    const reader = await Reader.findOne({ readerId });  
+    if (!reader) {
+      return response.status(404).json({ error: "Reader not found" });  
+    }
+    const card = await Card.findOne({ cardUID });
+    if (!card) {
+      return response.status(404).json({ error: "Card not found" });  
+    }
+    const currentTime = new Date();
+    const result = await Entry.insertOne({
+      cardUID,
+      readerId,
+      mode,
+      createdAt: currentTime,
+    });
+    response.json({ message: "Entry added successfully", insertedId: result.insertedId  });
+  } catch (error) {
+    console.error("Unable to add entry:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to add entry" });
+  }
+});
+
 api.get("/get-card/:cardUID", async (request, response) => {
   try {
     const cardUID = request.params.cardUID;
@@ -227,7 +255,6 @@ api.get("/get-card/:cardUID", async (request, response) => {
       .json({ error: error.message || "Unable to fetch card" });
   }
 });
-
 api.get("/get-my-card", authenticateUser("card"), async (request, response) => {
   try {
     const card = await Card.findOne({ _id: new ObjectId(request.user.id) });
@@ -301,6 +328,12 @@ api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
         .status(400)
         .json({ error: "Unable to deduct balance from card" });
     }
+    await Entry.insertOne({
+      cardUID: cardUID,
+      readerId: readerId,
+      mode: "payment",
+      createdAt: new Date(),  
+    });
     response.status(200).json({ message: "Balance deducted successfully" });  
   } catch (error) {
     console.error("Unable to deduct balance:", error.message);
