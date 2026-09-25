@@ -12,6 +12,17 @@ One RFID card for identity verification, payments, and door access.
 	<img src="./assets/software/home_page_hero_section.png" alt="UniCard home page" width="820">
 </p>
 
+## Demo Login Credentials
+
+Use these prototype credentials on the web dashboard login page:
+
+| Account | Email | Password |
+| --- | --- | --- |
+| Reader administrator | `reader@read.com` | `123` |
+| Writer/cardholder | `jonayeeds@gmail.com` | `123` |
+
+These credentials are intended for demonstration purposes only and must be replaced before production use.
+
 ## Overview
 
 UNICARD is an IoT ecosystem that connects a reusable RFID card to configurable physical readers and a cloud-hosted web interface. The same card can be registered once and then used for several purposes depending on the configuration of the reader it is tapped on:
