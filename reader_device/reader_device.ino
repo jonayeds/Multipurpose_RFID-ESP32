@@ -19,6 +19,7 @@
 
 #include <vector>
 
+// display
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
@@ -26,6 +27,9 @@
 // rfid Pins
 #define SDA_PIN 5
 #define RST_PIN 4
+
+// buzzer pin
+#define BUZZER_PIN 27
 
 
 MFRC522 rfid(SDA_PIN, RST_PIN);
@@ -130,6 +134,10 @@ void setup() {
   Serial.print("This Reader's Unique ID is: ");
   Serial.println(readerId);
   fetchReaderConfiguration();
+
+  // buzzer setup
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 void loop() {
@@ -180,6 +188,8 @@ void loop() {
           display.setTextColor(SSD1306_WHITE);
           display.println("Card is not verified");
           display.display();
+
+          failureBeep();
         } else {
 
           // Check doorcode if mode is doorlock
@@ -204,6 +214,8 @@ void loop() {
               display.setTextColor(SSD1306_WHITE);
               display.println("Door code Matched");
               display.display();
+
+              successBeep();
             }else{
               display.clearDisplay();
               display.setTextSize(1);
@@ -211,6 +223,8 @@ void loop() {
               display.setTextColor(SSD1306_WHITE);
               display.println("Wrong Door code!!");
               display.display();
+
+              failureBeep();
             }
           }
           else if(readerMode == "payment"){
@@ -236,6 +250,8 @@ void loop() {
                 display.setTextColor(SSD1306_WHITE);
                 display.println("Payment Successfull");
                 display.display();
+
+                successBeep();
               }else{
                 display.clearDisplay();
                 display.setTextSize(1);
@@ -243,6 +259,8 @@ void loop() {
                 display.setTextColor(SSD1306_WHITE);
                 display.println("Payment could not be completed");
                 display.display();
+
+                failureBeep();
               }
             }else{
               display.clearDisplay();
@@ -251,6 +269,8 @@ void loop() {
               display.setTextColor(SSD1306_WHITE);
               display.println("Not enough Balance!!");
               display.display();
+
+              failureBeep();
             }
           }else if(readerMode == "identification"){
             if(isCardAuthorized(cardUID)){
@@ -272,6 +292,8 @@ void loop() {
               display.println("you are authorized");
               display.display();
 
+              successBeep();
+
               addEntry(readerId, cardUID, readerMode);
 
             }else{
@@ -281,6 +303,8 @@ void loop() {
               display.setTextColor(SSD1306_WHITE);
               display.println("Not authorized!!");
               display.display();
+
+              failureBeep();
             }
           }
         }
@@ -292,6 +316,8 @@ void loop() {
         display.setTextColor(SSD1306_WHITE);
         display.println("Reader Not Registered");
         display.display();
+
+        failureBeep();
       }
 
       // Halt the card so it doesn't read the same tap 100 times a second
@@ -386,11 +412,6 @@ void showSuccessAnimation() {
   int centerY = 40;
 
   display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0);
-  display.println("UniCard System");
-  display.display();
 
   for (int r = 0; r <= 14; r += 2) {
     if (r > 0) {
@@ -619,4 +640,20 @@ bool isCardAuthorized(String tappedUID) {
     }
   }
   return false; 
+}
+
+void successBeep() {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(100);
+  digitalWrite(BUZZER_PIN, LOW);
+  delay(100);
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(100);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void failureBeep() {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(800);
+  digitalWrite(BUZZER_PIN, LOW);
 }
