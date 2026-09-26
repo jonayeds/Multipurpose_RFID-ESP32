@@ -93,6 +93,10 @@ api.post("/register-card", async (request, response) => {
       console.log(data);
       throw new Error("Data not fulfilled to register card");
     }
+    const isCardExists = await Card.findOne({$or:[{cardUID: data.cardUID}, {email: data.email}]});
+    if (isCardExists) {
+      throw new Error("Card with the same UID or email already exists");  
+    }
     const result = await Card.insertOne(request.body);
     response.status(201).json({
       message: "Card registered successfully",
@@ -300,7 +304,6 @@ api.get("/get-reader/:readerId", async (request, response) => {
     response.status(400).json({ error: "Invalid reader identifier" });
   }
 });
-
 api.get(
   "/get-entries",
   authenticateUser("reader"),
@@ -347,7 +350,6 @@ api.get(
     }
   },
 );
-
 api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
   try {
     const { cardUID, readerId } = request.params;
@@ -392,6 +394,23 @@ api.patch("/deduct-balance/:cardUID/:readerId", async (request, response) => {
       .json({ error: error.message || "Unable to deduct balance" });
   }
 });
+
+api.delete("/delete-reader/:readerId", async (request, response) =>{
+  try {
+    const { readerId } = request.params;
+    const deleteResult = await Reader.deleteOne({ readerId });
+    if (deleteResult.deletedCount === 0) {
+      return response.status(404).json({ error: "Reader not found" });
+    }
+    await Entry.deleteMany({ readerId });
+    response.status(200).json({ message: "Reader deleted successfully along with associated entries." });
+  } catch (error) {
+    console.error("Unable to delete reader:", error.message);
+    response
+      .status(500)
+      .json({ error: error.message || "Unable to delete reader" }); 
+  }
+})
 
 app.use((_request, response) => {
   response.status(404).json({ error: "Not found" });
